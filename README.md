@@ -1,6 +1,8 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
+封装了：渲染项 + 光照 + 阴影 + 导入模型 + 骨骼动画 + 基于CPU的火焰烟雾粒子效果
+
 一个Windows Vulkan程序需要的所有代码：
 
 ```
