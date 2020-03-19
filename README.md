@@ -3,6 +3,7 @@
 
 一个Windows Vulkan程序需要的所有代码：
 
+```
 #define VK_USE_PLATFORM_WIN32_KHR
 
 #include "framework.h"
@@ -768,3 +769,5 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return 0;
 }
+
+```
