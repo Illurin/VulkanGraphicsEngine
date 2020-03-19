@@ -1,0 +1,228 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="着色器">
+      <UniqueIdentifier>{f72fabb9-fd5a-47c6-a82c-86474968a2d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="素材加载库">
+      <UniqueIdentifier>{29712c9d-de42-46ec-ae42-9e6f9d5231b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vulkan辅助库">
+      <UniqueIdentifier>{c0456872-9e20-4c21-ba22-cf29d2f18aaf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="控制模块辅助库">
+      <UniqueIdentifier>{77246fe2-8360-4b0c-9b92-9839006db3b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\通用">
+      <UniqueIdentifier>{da0d8d2c-834a-4cd1-9418-39fe24b04c38}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\阴影">
+      <UniqueIdentifier>{b5c58542-50d5-4b2c-b14e-11dc2eaef352}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\天空盒">
+      <UniqueIdentifier>{62d1656d-a40d-41ba-a0c0-5a6d3f399be9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\粒子效果">
+      <UniqueIdentifier>{1c16e495-ca46-414d-970c-23e745e4ff6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="渲染辅助库">
+      <UniqueIdentifier>{c8d258db-172a-498e-a577-1a9250bfb86e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\辉光">
+      <UniqueIdentifier>{90d009bf-89fd-44b4-aae8-0ca8aa26b54a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\蒙皮动画">
+      <UniqueIdentifier>{bdaf290d-1f2b-414a-a0e8-11e694b01a51}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="引擎框架">
+      <UniqueIdentifier>{275b437d-1ab8-4671-8b7d-302c5ff5ec4e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanGraphicsEngine.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Texture.h">
+      <Filter>素材加载库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\vkUtil.h">
+      <Filter>Vulkan辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\FrameResource.h">
+      <Filter>Vulkan辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderStructure.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Camera.h">
+      <Filter>控制模块辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Model.h">
+      <Filter>素材加载库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\PlayerController.h">
+      <Filter>控制模块辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\GeometryGenerator.h">
+      <Filter>Vulkan辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\ParticleSystem.h">
+      <Filter>渲染辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\PostProcessing.h">
+      <Filter>渲染辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\ShadowMap.h">
+      <Filter>渲染辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\SkinnedData.h">
+      <Filter>控制模块辅助库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\SkinnedModel.h">
+      <Filter>素材加载库</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Scene.h">
+      <Filter>引擎框架</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Component.h">
+      <Filter>引擎框架</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="VulkanGraphicsEngine.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Texture.cpp">
+      <Filter>素材加载库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\vkUtil.cpp">
+      <Filter>Vulkan辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderStructure.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Camera.cpp">
+      <Filter>控制模块辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Model.cpp">
+      <Filter>素材加载库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\PlayerController.cpp">
+      <Filter>控制模块辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\GeometryGenerator.cpp">
+      <Filter>Vulkan辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\ParticleSystem.cpp">
+      <Filter>渲染辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\PostProcessing.cpp">
+      <Filter>渲染辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\ShadowMap.cpp">
+      <Filter>渲染辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\SkinnedData.cpp">
+      <Filter>控制模块辅助库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\SkinnedModel.cpp">
+      <Filter>素材加载库</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Scene.cpp">
+      <Filter>引擎框架</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="VulkanGraphicsEngine.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="VulkanGraphicsEngine.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\Common.hlsl">
+      <Filter>着色器\通用</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\LightingUtil.hlsl">
+      <Filter>着色器\通用</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowPS.hlsl">
+      <Filter>着色器\阴影</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowVS.hlsl">
+      <Filter>着色器\阴影</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VertexShader.hlsl">
+      <Filter>着色器\通用</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PixelShader.hlsl">
+      <Filter>着色器\通用</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SkyboxVS.hlsl">
+      <Filter>着色器\天空盒</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SkyboxPS.hlsl">
+      <Filter>着色器\天空盒</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleGS.hlsl">
+      <Filter>着色器\粒子效果</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticlePS.hlsl">
+      <Filter>着色器\粒子效果</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleVS.hlsl">
+      <Filter>着色器\粒子效果</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BloomPS.hlsl">
+      <Filter>着色器\辉光</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BloomVS.hlsl">
+      <Filter>着色器\辉光</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BlurH.hlsl">
+      <Filter>着色器\辉光</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BlurV.hlsl">
+      <Filter>着色器\辉光</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Combine.hlsl">
+      <Filter>着色器\辉光</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowSkinnedVS.hlsl">
+      <Filter>着色器\阴影</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SkinnedVS.hlsl">
+      <Filter>着色器\蒙皮动画</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SkinnedPS.hlsl">
+      <Filter>着色器\蒙皮动画</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
