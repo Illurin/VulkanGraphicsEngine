@@ -6,17 +6,16 @@ GameObject* Scene::CreatePlane(std::string name, float width, float depth, float
 
 	GameObject gameObject;
 	gameObject.name = name;
-	gameObject.objCBIndex = gameObjects.size();
 
 	MeshRenderer meshRenderer;
-	meshRenderer.gameObject = &gameObject;
 	meshRenderer.vertices = meshData.vertices;
 	meshRenderer.indices = meshData.indices;
-	meshRenderers.push_back(meshRenderer);
 
 	gameObjects[name] = gameObject;
+	meshRenderer.gameObject = &gameObjects[name];
+	meshRenderers.push_back(meshRenderer);
 
-	return &gameObject;
+	return &gameObjects[name];
 }
 
 GameObject* Scene::CreateGeosphere(std::string name, float radius, uint32_t numSubdivison) {
@@ -25,17 +24,16 @@ GameObject* Scene::CreateGeosphere(std::string name, float radius, uint32_t numS
 
 	GameObject gameObject;
 	gameObject.name = name;
-	gameObject.objCBIndex = gameObjects.size();
 
 	MeshRenderer meshRenderer;
-	meshRenderer.gameObject = &gameObject;
 	meshRenderer.vertices = meshData.vertices;
 	meshRenderer.indices = meshData.indices;
-	meshRenderers.push_back(meshRenderer);
 
 	gameObjects[name] = gameObject;
+	meshRenderer.gameObject = &gameObjects[name];
+	meshRenderers.push_back(meshRenderer);
 
-	return &gameObject;
+	return &gameObjects[name];
 }
 
 Material* Scene::CreateMaterial(std::string name, Texture* diffuse, glm::mat4x4 matTransform, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness) {
@@ -48,7 +46,7 @@ Material* Scene::CreateMaterial(std::string name, Texture* diffuse, glm::mat4x4 
 	material.matTransform = matTransform;
 	material.roughness = roughness;
 	materials[name] = material;
-	return &material;
+	return &materials[name];
 }
 
 void Scene::BindMaterial(GameObject* gameObject, Material* material) {
@@ -57,6 +55,11 @@ void Scene::BindMaterial(GameObject* gameObject, Material* material) {
 
 void Scene::BindMaterial(std::string gameObject, std::string material) {
 	gameObjects[gameObject].material = &materials[material];
+}
+
+GameObject* Scene::GetGameObject(std::string name) {
+	GameObject* gameObject = &gameObjects[name];
+	return gameObject;
 }
 
 void Scene::SetAmbientLight(glm::vec3 strength) {
@@ -95,6 +98,14 @@ void Scene::SetMainCamera(Camera* mainCamera) {
 	this->mainCamera = mainCamera;
 }
 
+void Scene::SetSkybox(std::wstring imagePath, float radius, uint32_t subdivision) {
+	skybox.use = true;
+	LoadCubeMapWithWIC(imagePath.c_str(), GUID_WICPixelFormat32bppRGBA, skybox.image, &vkInfo->device, vkInfo->gpu.getMemoryProperties());
+	skybox.image.SetupImage(&vkInfo->device, vkInfo->gpu.getMemoryProperties(), vkInfo->cmdPool, &vkInfo->queue);
+	skybox.subdivision = subdivision;
+	skybox.radius = radius;
+}
+
 void Scene::UpdateObjectConstants() {
 	for (auto& gameObject : gameObjects) {
 		if (gameObject.second.dirtyFlag) {
@@ -108,7 +119,8 @@ void Scene::UpdateObjectConstants() {
 				* glm::rotate(glm::mat4(1.0f), gameObject.second.transform.eulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
 			ObjectConstants objectConstants;
 			objectConstants.worldMatrix = GR * T * S * LR;
-			frameResources[0]->objCB[gameObject.second.objCBIndex]->CopyData(&vkInfo->device, 0, 1, &objectConstants);
+			frameResources->objCB[gameObject.second.objCBIndex]->CopyData(&vkInfo->device, 0, 1, &objectConstants);
+			gameObject.second.dirtyFlag = false;
 		}
 	}
 }
@@ -117,7 +129,7 @@ void Scene::UpdatePassConstants() {
 	PassConstants passConstants;
 	passConstants.projMatrix = shadowMap.GetLightProjMatrix();
 	passConstants.viewMatrix = shadowMap.GetLightViewMatrix();
-	frameResources[0]->passCB[1]->CopyData(&vkInfo->device, 0, 1, &passConstants);
+	frameResources->passCB[1]->CopyData(&vkInfo->device, 0, 1, &passConstants);
 	passConstants.projMatrix = mainCamera->GetProjMatrix4x4();
 	passConstants.viewMatrix = mainCamera->GetViewMatrix4x4();
 	passConstants.eyePos = glm::vec4(mainCamera->GetPosition3f(), 1.0f);
@@ -126,7 +138,7 @@ void Scene::UpdatePassConstants() {
 	passConstants.lights[1] = pointLight;
 	passConstants.lights[2] = spotLight;
 	passConstants.ambientLight = glm::vec4(ambientLight, 1.0f);
-	frameResources[0]->passCB[0]->CopyData(&vkInfo->device, 0, 1, &passConstants);
+	frameResources->passCB[0]->CopyData(&vkInfo->device, 0, 1, &passConstants);
 }
 
 void Scene::UpdateMaterialConstants() {
@@ -137,7 +149,8 @@ void Scene::UpdateMaterialConstants() {
 			materialConstants.fresnelR0 = material.second.fresnelR0;
 			materialConstants.matTransform = material.second.matTransform;
 			materialConstants.roughness = material.second.roughness;
-			frameResources[0]->matCB[material.second.matCBIndex]->CopyData(&vkInfo->device, 0, 1, &materialConstants);
+			frameResources->matCB[material.second.matCBIndex]->CopyData(&vkInfo->device, 0, 1, &materialConstants);
+			material.second.dirtyFlag = false;
 		}
 	}
 }
@@ -150,8 +163,17 @@ void Scene::SetupVertexBuffer() {
 	for (auto& meshRenderer : meshRenderers) {
 		meshRenderer.baseVertexLocation = vertices.size();
 		meshRenderer.startIndexLocation = indices.size();
-		vertices.insert(vertices.begin(), meshRenderer.vertices.begin(), meshRenderer.vertices.end());
-		indices.insert(indices.begin(), meshRenderer.indices.begin(), meshRenderer.indices.end());
+		vertices.insert(vertices.end(), meshRenderer.vertices.begin(), meshRenderer.vertices.end());
+		indices.insert(indices.end(), meshRenderer.indices.begin(), meshRenderer.indices.end());
+	}
+	if (skybox.use) {
+		GeometryGenerator geoGen;
+		GeometryGenerator::MeshData skyboxMesh = geoGen.CreateGeosphere(skybox.radius, skybox.subdivision);
+		skybox.baseVertexLocation = vertices.size();
+		skybox.startIndexLocation = indices.size();
+		skybox.indexCount = skyboxMesh.indices.size();
+		vertices.insert(vertices.end(), skyboxMesh.vertices.begin(), skyboxMesh.vertices.end());
+		indices.insert(indices.end(), skyboxMesh.indices.begin(), skyboxMesh.indices.end());
 	}
 	for (auto& meshRenderer : skinnedMeshRenderers) {
 		meshRenderer.baseVertexLocation = skinnedVertices.size();
@@ -181,8 +203,7 @@ void Scene::SetupVertexBuffer() {
 
 void Scene::SetupDescriptors() {
 	//初始化FrameBuffer
-	frameResources.resize(1);
-	frameResources[0] = std::make_unique<FrameResource>(&vkInfo->device, vkInfo->gpu.getMemoryProperties(), 2, gameObjects.size(), materials.size(), skinnedModelInst.size());
+	frameResources = std::make_unique<FrameResource>(&vkInfo->device, vkInfo->gpu.getMemoryProperties(), 2, gameObjects.size(), materials.size(), 0);
 
 	//创建通用的采样器
 	vk::Sampler repeatSampler;
@@ -233,53 +254,52 @@ void Scene::SetupDescriptors() {
 		vkInfo->device.createSampler(&samplerInfo, 0, &comparisonSampler);
 	}
 
-	//第一个管线布局：世界矩阵,纹理和材质常量
+	//第一个管线布局：世界矩阵
 	auto objCBBinding = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
 		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
-	auto textureBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(1)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampledImage)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+	vk::DescriptorSetLayoutBinding layoutBindingObject[] = {
+		objCBBinding
+	};
 
+	//第二个管线布局：纹理，材质常量和采样器
 	auto materialCBBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(2)
+		.setBinding(0)
 		.setDescriptorCount(1)
 		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
-	vk::DescriptorSetLayoutBinding layoutBindingObject[] = {
-		objCBBinding, textureBinding, materialCBBinding
+	auto samplerBinding = vk::DescriptorSetLayoutBinding()
+		.setBinding(1)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eSampler)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+	auto textureBinding = vk::DescriptorSetLayoutBinding()
+		.setBinding(2)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eSampledImage)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+	vk::DescriptorSetLayoutBinding layoutBindingMaterial[] = {
+		textureBinding, materialCBBinding, samplerBinding
 	};
 
-	//第二个管线布局：Pass常量和采样器
+	//第三个管线布局：Pass常量
 	auto passCBBinding = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
 		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment);
 
-	auto repeatSamplerBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(1)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampler)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	auto borderSamplerBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(2)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampler)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
 	vk::DescriptorSetLayoutBinding layoutBindingPass[] = {
-		passCBBinding, repeatSamplerBinding, borderSamplerBinding
+		passCBBinding
 	};
 
-	//第三个管线布局：比较采样器和阴影贴图
+	//第四个管线布局：比较采样器和阴影贴图
 	auto shadowSamplerBinding = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
@@ -296,7 +316,7 @@ void Scene::SetupDescriptors() {
 		shadowSamplerBinding, shadowMapBinding
 	};
 
-	//第四个管线布局：骨骼的变换矩阵
+	//第五个管线布局：骨骼的变换矩阵
 	auto layoutBindingSkinned = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
@@ -321,27 +341,32 @@ void Scene::SetupDescriptors() {
 	};
 
 	//为渲染管线提供管线布局
-	vkInfo->descSetLayout.resize(4);
+	vkInfo->descSetLayout.resize(5);
 
 	auto descLayoutInfo_obj = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(3)
+		.setBindingCount(1)
 		.setPBindings(layoutBindingObject);
 	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_obj, 0, &vkInfo->descSetLayout[0]);
 
-	auto descLayoutInfo_pass = vk::DescriptorSetLayoutCreateInfo()
+	auto descLayoutInfo_material = vk::DescriptorSetLayoutCreateInfo()
 		.setBindingCount(3)
+		.setPBindings(layoutBindingMaterial);
+	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_material, 0, &vkInfo->descSetLayout[1]);
+
+	auto descLayoutInfo_pass = vk::DescriptorSetLayoutCreateInfo()
+		.setBindingCount(1)
 		.setPBindings(layoutBindingPass);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_pass, 0, &vkInfo->descSetLayout[1]);
+	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_pass, 0, &vkInfo->descSetLayout[2]);
 
 	auto descLayoutInfo_shadow = vk::DescriptorSetLayoutCreateInfo()
 		.setBindingCount(2)
 		.setPBindings(layoutBindingShadow);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_shadow, 0, &vkInfo->descSetLayout[2]);
+	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_shadow, 0, &vkInfo->descSetLayout[3]);
 
 	auto descLayoutInfo_skinned = vk::DescriptorSetLayoutCreateInfo()
 		.setBindingCount(1)
 		.setPBindings(&layoutBindingSkinned);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_skinned, 0, &vkInfo->descSetLayout[3]);
+	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_skinned, 0, &vkInfo->descSetLayout[4]);
 
 	//为finalPass提供管线布局
 	auto descLayoutInfo_final = vk::DescriptorSetLayoutCreateInfo()
@@ -350,48 +375,70 @@ void Scene::SetupDescriptors() {
 	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_final, 0, &vkInfo->finalPassLayout);
 
 	//为描述符的分配提供布局
-	passCount = passCountPerFrame * frameCount;
-	descCount = passCount + gameObjects.size();
-
-	std::vector<vk::DescriptorSetLayout> descLayout(descCount + frameCount + skinnedModelInst.size());
-	for (uint32_t i = 0; i < gameObjects.size(); i++)
-		descLayout[i] = vkInfo->descSetLayout[0];
-	for (uint32_t i = 0; i < passCount; i++) {
-		uint32_t index = i + gameObjects.size();
-		descLayout[index] = vkInfo->descSetLayout[1];
-	}
-	for (uint32_t i = 0; i < frameCount; i++) {
-		uint32_t index = i + gameObjects.size() + passCount;
-		descLayout[index] = vkInfo->descSetLayout[2];
-	}
-	for (uint32_t i = 0; i < skinnedModelInst.size(); i++) {
-		uint32_t index = i + gameObjects.size() + passCount + frameCount;
-		descLayout[index] = vkInfo->descSetLayout[3];
-	}
+	uint32_t objCount = gameObjects.size();
+	uint32_t matCount = materials.size();
+	uint32_t descCount = objCount + matCount + passCount + skinnedModelInst.size() + 1;
 
 	//创建描述符池
 	vk::DescriptorPoolSize typeCount[3];
 	typeCount[0].setType(vk::DescriptorType::eUniformBuffer);
-	typeCount[0].setDescriptorCount(descCount + gameObjects.size() + skinnedModelInst.size());
+	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0));
 	typeCount[1].setType(vk::DescriptorType::eSampledImage);
-	typeCount[1].setDescriptorCount(gameObjects.size() + frameCount + 1);
+	typeCount[1].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0));
 	typeCount[2].setType(vk::DescriptorType::eSampler);
-	typeCount[2].setDescriptorCount(passCount * 2 + frameCount + 1);
+	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0));
 
 	auto descriptorPoolInfo = vk::DescriptorPoolCreateInfo()
-		.setMaxSets(descCount + frameCount + skinnedModelInst.size() + 1)
+		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0))
 		.setPoolSizeCount(3)
 		.setPPoolSizes(typeCount);
 	vkInfo->device.createDescriptorPool(&descriptorPoolInfo, 0, &vkInfo->descPool);
 
-	//分配descCount个描述符
-	vkInfo->descSets.resize(descCount + frameCount + skinnedModelInst.size());
+	//分配描述符
+	vk::DescriptorSetAllocateInfo descSetAllocInfo;
 
-	auto descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+	for (auto& gameObject : gameObjects) {
+		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+			.setDescriptorPool(vkInfo->descPool)
+			.setDescriptorSetCount(1)
+			.setPSetLayouts(&vkInfo->descSetLayout[0]);
+		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &gameObject.second.descSet);
+	}
+
+	for (auto& material : materials) {
+		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+			.setDescriptorPool(vkInfo->descPool)
+			.setDescriptorSetCount(1)
+			.setPSetLayouts(&vkInfo->descSetLayout[1]);
+		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &material.second.descSet);
+	}
+
+	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 		.setDescriptorPool(vkInfo->descPool)
-		.setDescriptorSetCount(descCount + frameCount + skinnedModelInst.size())
-		.setPSetLayouts(descLayout.data());
-	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, vkInfo->descSets.data());
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&vkInfo->descSetLayout[2]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &scenePassDesc);
+
+	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+		.setDescriptorPool(vkInfo->descPool)
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&vkInfo->descSetLayout[2]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &shadowPassDesc);
+
+	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+		.setDescriptorPool(vkInfo->descPool)
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&vkInfo->descSetLayout[3]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &drawShadowDesc);
+
+	//分配天空盒的描述符
+	if (skybox.use) {
+		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+			.setDescriptorPool(vkInfo->descPool)
+			.setDescriptorSetCount(1)
+			.setPSetLayouts(&vkInfo->descSetLayout[1]);
+		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &skybox.descSet);
+	}
 
 	//为finalPass分配一个描述符
 	vkInfo->finalPassDescSets.resize(1);
@@ -403,79 +450,96 @@ void Scene::SetupDescriptors() {
 	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, vkInfo->finalPassDescSets.data());
 
 	//更新每一个描述符
-	int descSetIndex = 0;
+	uint32_t objCBIndex = 0;
 	for (auto& gameObject : gameObjects) {
-		auto descriptrorObjCBInfo = vk::DescriptorBufferInfo()
-			.setBuffer(frameResources[0]->objCB[gameObject.second.objCBIndex]->GetBuffer())
+		gameObject.second.objCBIndex = objCBIndex;
+
+		auto descriptorObjCBInfo = vk::DescriptorBufferInfo()
+			.setBuffer(frameResources->objCB[objCBIndex]->GetBuffer())
 			.setOffset(0)
 			.setRange(sizeof(ObjectConstants));
 
-		auto descriptorImageInfo = vk::DescriptorImageInfo()
-			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-			.setImageView(gameObject.second.material->diffuse->GetImageView(&vkInfo->device));
-
-		auto descriptorMatCBInfo = vk::DescriptorBufferInfo()
-			.setBuffer(frameResources[0]->matCB[gameObject.second.material->matCBIndex]->GetBuffer())
-			.setOffset(0)
-			.setRange(sizeof(MaterialConstants));
-
-		vk::WriteDescriptorSet descSetWrites[3];
+		vk::WriteDescriptorSet descSetWrites[1];
 		descSetWrites[0].setDescriptorCount(1);
 		descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
 		descSetWrites[0].setDstArrayElement(0);
 		descSetWrites[0].setDstBinding(0);
-		descSetWrites[0].setDstSet(vkInfo->descSets[descSetIndex]);
-		descSetWrites[0].setPBufferInfo(&descriptrorObjCBInfo);
-		descSetWrites[1].setDescriptorCount(1);
-		descSetWrites[1].setDescriptorType(vk::DescriptorType::eSampledImage);
-		descSetWrites[1].setDstArrayElement(0);
-		descSetWrites[1].setDstBinding(1);
-		descSetWrites[1].setDstSet(vkInfo->descSets[descSetIndex]);
-		descSetWrites[1].setPImageInfo(&descriptorImageInfo);
-		descSetWrites[2].setDescriptorCount(1);
-		descSetWrites[2].setDescriptorType(vk::DescriptorType::eUniformBuffer);
-		descSetWrites[2].setDstArrayElement(0);
-		descSetWrites[2].setDstBinding(2);
-		descSetWrites[2].setDstSet(vkInfo->descSets[descSetIndex]);
-		descSetWrites[2].setPBufferInfo(&descriptorMatCBInfo);
-		vkInfo->device.updateDescriptorSets(3, descSetWrites, 0, 0);
-		descSetIndex++;
+		descSetWrites[0].setDstSet(gameObject.second.descSet);
+		descSetWrites[0].setPBufferInfo(&descriptorObjCBInfo);
+		vkInfo->device.updateDescriptorSets(1, descSetWrites, 0, 0);
+
+		objCBIndex++;
 	}
 
-	for (uint32_t i = 0; i < passCount; i++) {
-		uint32_t index = i + gameObjects.size();
+	uint32_t matCBIndex = 0;
+	for (auto& material : materials) {
+		material.second.matCBIndex = matCBIndex;
 
-		auto descriptrorPassCBInfo = vk::DescriptorBufferInfo()
-			.setBuffer(frameResources[0]->passCB[i]->GetBuffer())
+		auto descriptorMatCBInfo = vk::DescriptorBufferInfo()
+			.setBuffer(frameResources->matCB[matCBIndex]->GetBuffer())
 			.setOffset(0)
-			.setRange(sizeof(PassConstants));
+			.setRange(sizeof(ObjectConstants));
 
-		auto descriptorRepeatSamplerInfo = vk::DescriptorImageInfo()
+		auto descriptorSamplerInfo = vk::DescriptorImageInfo()
 			.setSampler(repeatSampler);
 
-		auto descriptorBorderSamplerInfo = vk::DescriptorImageInfo()
-			.setSampler(borderSampler);
+		auto descriptorDiffuseInfo = vk::DescriptorImageInfo()
+			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+			.setImageView(material.second.diffuse->GetImageView(&vkInfo->device));
 
 		vk::WriteDescriptorSet descSetWrites[3];
 		descSetWrites[0].setDescriptorCount(1);
 		descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
 		descSetWrites[0].setDstArrayElement(0);
 		descSetWrites[0].setDstBinding(0);
-		descSetWrites[0].setDstSet(vkInfo->descSets[index]);
-		descSetWrites[0].setPBufferInfo(&descriptrorPassCBInfo);
+		descSetWrites[0].setDstSet(material.second.descSet);
+		descSetWrites[0].setPBufferInfo(&descriptorMatCBInfo);
 		descSetWrites[1].setDescriptorCount(1);
 		descSetWrites[1].setDescriptorType(vk::DescriptorType::eSampler);
 		descSetWrites[1].setDstArrayElement(0);
 		descSetWrites[1].setDstBinding(1);
-		descSetWrites[1].setDstSet(vkInfo->descSets[index]);
-		descSetWrites[1].setPImageInfo(&descriptorRepeatSamplerInfo);
+		descSetWrites[1].setDstSet(material.second.descSet);
+		descSetWrites[1].setPImageInfo(&descriptorSamplerInfo);
 		descSetWrites[2].setDescriptorCount(1);
-		descSetWrites[2].setDescriptorType(vk::DescriptorType::eSampler);
+		descSetWrites[2].setDescriptorType(vk::DescriptorType::eSampledImage);
 		descSetWrites[2].setDstArrayElement(0);
 		descSetWrites[2].setDstBinding(2);
-		descSetWrites[2].setDstSet(vkInfo->descSets[index]);
-		descSetWrites[2].setPImageInfo(&descriptorBorderSamplerInfo);
+		descSetWrites[2].setDstSet(material.second.descSet);
+		descSetWrites[2].setPImageInfo(&descriptorDiffuseInfo);
 		vkInfo->device.updateDescriptorSets(3, descSetWrites, 0, 0);
+
+		matCBIndex++;
+	}
+
+	{
+		auto descriptrorPassCBInfo = vk::DescriptorBufferInfo()
+			.setBuffer(frameResources->passCB[0]->GetBuffer())
+			.setOffset(0)
+			.setRange(sizeof(PassConstants));
+
+		vk::WriteDescriptorSet descSetWrites[1];
+		descSetWrites[0].setDescriptorCount(1);
+		descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
+		descSetWrites[0].setDstArrayElement(0);
+		descSetWrites[0].setDstBinding(0);
+		descSetWrites[0].setDstSet(scenePassDesc);
+		descSetWrites[0].setPBufferInfo(&descriptrorPassCBInfo);
+		vkInfo->device.updateDescriptorSets(1, descSetWrites, 0, 0);
+	}
+	{
+		auto descriptrorPassCBInfo = vk::DescriptorBufferInfo()
+			.setBuffer(frameResources->passCB[1]->GetBuffer())
+			.setOffset(0)
+			.setRange(sizeof(PassConstants));
+
+		vk::WriteDescriptorSet descSetWrites[1];
+		descSetWrites[0].setDescriptorCount(1);
+		descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
+		descSetWrites[0].setDstArrayElement(0);
+		descSetWrites[0].setDstBinding(0);
+		descSetWrites[0].setDstSet(shadowPassDesc);
+		descSetWrites[0].setPBufferInfo(&descriptrorPassCBInfo);
+		vkInfo->device.updateDescriptorSets(1, descSetWrites, 0, 0);
 	}
 
 	{
@@ -491,33 +555,41 @@ void Scene::SetupDescriptors() {
 		descSetWrites[0].setDescriptorType(vk::DescriptorType::eSampler);
 		descSetWrites[0].setDstArrayElement(0);
 		descSetWrites[0].setDstBinding(0);
-		descSetWrites[0].setDstSet(vkInfo->descSets[descCount]);
+		descSetWrites[0].setDstSet(drawShadowDesc);
 		descSetWrites[0].setPImageInfo(&descriptorSamplerInfo);
 		descSetWrites[1].setDescriptorCount(1);
 		descSetWrites[1].setDescriptorType(vk::DescriptorType::eSampledImage);
 		descSetWrites[1].setDstArrayElement(0);
 		descSetWrites[1].setDstBinding(1);
-		descSetWrites[1].setDstSet(vkInfo->descSets[descCount]);
+		descSetWrites[1].setDstSet(drawShadowDesc);
 		descSetWrites[1].setPImageInfo(&descriptorShadowMapInfo);
 		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
 	}
-	//{
-	//	uint32_t index = descCount + frameCount;
-	//
-	//	auto descriptrorSkinnedCBInfo = vk::DescriptorBufferInfo()
-	//		.setBuffer(frameResources[0]->skinnedCB[0]->GetBuffer())
-	//		.setOffset(0)
-	//		.setRange(sizeof(SkinnedConstants));
-	//
-	//	vk::WriteDescriptorSet descSetWrites[1];
-	//	descSetWrites[0].setDescriptorCount(1);
-	//	descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
-	//	descSetWrites[0].setDstArrayElement(0);
-	//	descSetWrites[0].setDstBinding(0);
-	//	descSetWrites[0].setDstSet(vkInfo->descSets[index]);
-	//	descSetWrites[0].setPBufferInfo(&descriptrorSkinnedCBInfo);
-	//	vkInfo->device.updateDescriptorSets(1, descSetWrites, 0, 0);
-	//}
+
+	//更新天空盒的描述符
+	if(skybox.use) {
+		auto descriptorSamplerInfo = vk::DescriptorImageInfo()
+			.setSampler(repeatSampler);
+
+		auto descriptorImageInfo = vk::DescriptorImageInfo()
+			.setImageView(skybox.image.GetImageView(&vkInfo->device))
+			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+
+		vk::WriteDescriptorSet descSetWrites[2];
+		descSetWrites[0].setDescriptorCount(1);
+		descSetWrites[0].setDescriptorType(vk::DescriptorType::eSampler);
+		descSetWrites[0].setDstArrayElement(0);
+		descSetWrites[0].setDstBinding(1);
+		descSetWrites[0].setDstSet(skybox.descSet);
+		descSetWrites[0].setPImageInfo(&descriptorSamplerInfo);
+		descSetWrites[1].setDescriptorCount(1);
+		descSetWrites[1].setDescriptorType(vk::DescriptorType::eSampledImage);
+		descSetWrites[1].setDstArrayElement(0);
+		descSetWrites[1].setDstBinding(2);
+		descSetWrites[1].setDstSet(skybox.descSet);
+		descSetWrites[1].setPImageInfo(&descriptorImageInfo);
+		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
+	}
 
 	//更新FinalPass的描述符
 	{
@@ -602,40 +674,6 @@ void Scene::PreparePipeline() {
 	skinnedAttrib[4].setFormat(vk::Format::eR32G32B32Uint);
 	skinnedAttrib[4].setLocation(4);
 	skinnedAttrib[4].setOffset(3 * sizeof(glm::vec3) + sizeof(glm::vec2));
-
-	//粒子的顶点输入装配属性
-	//vk::VertexInputBindingDescription particleBinding;
-	//std::vector<vk::VertexInputAttributeDescription> particleAttrib;
-
-	//particleBinding.setBinding(0);
-	//particleBinding.setInputRate(vk::VertexInputRate::eVertex);
-	//particleBinding.setStride(sizeof(ParticleSystem::Particle));
-
-	//particleAttrib.resize(5);
-
-	////glm::vec3 position
-	//particleAttrib[0].setBinding(0);
-	//particleAttrib[0].setFormat(vk::Format::eR32G32B32Sfloat);
-	//particleAttrib[0].setLocation(0);
-	//particleAttrib[0].setOffset(0);
-
-	////float size
-	//particleAttrib[1].setBinding(0);
-	//particleAttrib[1].setFormat(vk::Format::eR32Sfloat);
-	//particleAttrib[1].setLocation(1);
-	//particleAttrib[1].setOffset(sizeof(glm::vec3));
-
-	////glm::vec4 color
-	//particleAttrib[2].setBinding(0);
-	//particleAttrib[2].setFormat(vk::Format::eR32G32B32A32Sfloat);
-	//particleAttrib[2].setLocation(2);
-	//particleAttrib[2].setOffset(sizeof(glm::vec3) + sizeof(float));
-
-	////glm::vec4 texCoord
-	//particleAttrib[3].setBinding(0);
-	//particleAttrib[3].setFormat(vk::Format::eR32G32B32A32Sfloat);
-	//particleAttrib[3].setLocation(3);
-	//particleAttrib[3].setOffset(sizeof(glm::vec4) + sizeof(glm::vec3) + sizeof(float));
 
 	/*Create pipelines*/
 	auto vsModule = CreateShaderModule("Shaders\\vertex.spv", vkInfo->device);
@@ -778,7 +816,13 @@ void Scene::PreparePipeline() {
 	//创建用于绘制天空球的管线
 	dsInfo.setDepthCompareOp(vk::CompareOp::eLessOrEqual);
 
-	vkInfo->pipelines["skybox"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+	vk::DescriptorSetLayout descSetLayout[] = { vkInfo->descSetLayout[1], vkInfo->descSetLayout[2] };
+
+	auto skyboxPipelineInfo = vk::PipelineLayoutCreateInfo()
+		.setSetLayoutCount(2)
+		.setPSetLayouts(descSetLayout);
+	vkInfo->device.createPipelineLayout(&skyboxPipelineInfo, 0, &vkInfo->pipelineLayout["skybox"]);
+	vkInfo->pipelines["skybox"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["skybox"], pipelineShaderInfo, vkInfo->scenePass);
 
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(psModule);
@@ -885,63 +929,22 @@ void Scene::PreparePipeline() {
 		.setPName("main")
 		.setModule(psModule)
 		.setStage(vk::ShaderStageFlagBits::eFragment);
-
-	//创建用于粒子效果的管线
-	/*dsInfo = vk::PipelineDepthStencilStateCreateInfo()
-		.setDepthTestEnable(VK_TRUE)
-		.setDepthWriteEnable(VK_FALSE)
-		.setDepthCompareOp(vk::CompareOp::eLessOrEqual)
-		.setDepthBoundsTestEnable(VK_FALSE)
-		.setStencilTestEnable(VK_FALSE);
-
-	attState.setBlendEnable(VK_TRUE);
-	attState.setColorBlendOp(vk::BlendOp::eAdd);
-	attState.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
-	attState.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha);
-	attState.setAlphaBlendOp(vk::BlendOp::eAdd);
-	attState.setSrcAlphaBlendFactor(vk::BlendFactor::eZero);
-	attState.setDstAlphaBlendFactor(vk::BlendFactor::eOne);
-
-	cbInfo = vk::PipelineColorBlendStateCreateInfo()
-		.setLogicOpEnable(VK_FALSE)
-		.setAttachmentCount(1)
-		.setPAttachments(&attState)
-		.setLogicOp(vk::LogicOp::eNoOp);
-
-	iaInfo.setTopology(vk::PrimitiveTopology::ePointList);
-
-	viInfo = vk::PipelineVertexInputStateCreateInfo()
-		.setVertexBindingDescriptionCount(1)
-		.setPVertexBindingDescriptions(&particleBinding)
-		.setVertexAttributeDescriptionCount(4)
-		.setPVertexAttributeDescriptions(particleAttrib.data());
-
-	vkInfo->pipelines["smoke"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
-
-	attState.setDstColorBlendFactor(vk::BlendFactor::eOne);
-
-	vkInfo->pipelines["flame"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
-
-	vkInfo->device.destroyShaderModule(vsModule);
-	vkInfo->device.destroyShaderModule(gsModule);
-	vkInfo->device.destroyShaderModule(psModule);*/
 }
 
 void Scene::DrawObject(uint32_t currentBuffer) {
 	shadowMap.BeginRenderPass(&vkInfo->cmd);
 
-	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &vkInfo->descSets[gameObjects.size() + 1], 0, 0);
+	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &shadowPassDesc, 0, 0);
 	vkInfo->cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["shadow"]);
 	
 	vk::DeviceSize offsets[] = { 0 };
 	vkInfo->cmd.bindIndexBuffer(indexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
 	vkInfo->cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
 
-	int descSetIndex = 0;
 	for (auto& meshRenderer : meshRenderers) {
-		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &vkInfo->descSets[descSetIndex], 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer.gameObject->descSet, 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer.gameObject->material->descSet, 0, 0);
 		vkInfo->cmd.drawIndexed(meshRenderer.indices.size(), 1, meshRenderer.startIndexLocation, meshRenderer.baseVertexLocation, 1);
-		descSetIndex++;
 	}
 
 	vkInfo->cmd.endRenderPass();
@@ -959,18 +962,23 @@ void Scene::DrawObject(uint32_t currentBuffer) {
 	renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)));
 	vkInfo->cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 
-	//17.7 Bind Pipeline state
 	vkInfo->cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["opaque"]);
 
-	//绑定PassConstants描述符
-	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &vkInfo->descSets[gameObjects.size()], 0, 0);
-	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &vkInfo->descSets[descCount], 0, 0);
+	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
+	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 3, 1, &drawShadowDesc, 0, 0);
 
-	descSetIndex = 0;
 	for (auto& meshRenderer : meshRenderers) {
-		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &vkInfo->descSets[descSetIndex], 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer.gameObject->descSet, 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer.gameObject->material->descSet, 0, 0);
 		vkInfo->cmd.drawIndexed(meshRenderer.indices.size(), 1, meshRenderer.startIndexLocation, meshRenderer.baseVertexLocation, 1);
-		descSetIndex++;
+	}
+
+	//绘制天空盒
+	if (skybox.use) {
+		vkInfo->cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["skybox"]);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["skybox"], 0, 1, &skybox.descSet, 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["skybox"], 1, 1, &scenePassDesc, 0, 0);
+		vkInfo->cmd.drawIndexed(skybox.indexCount, 1, skybox.startIndexLocation, skybox.baseVertexLocation, 1);
 	}
 
 	vkInfo->cmd.endRenderPass();

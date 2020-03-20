@@ -18,6 +18,5 @@ private:
 	//Global value
 	Camera mainCamera;
 
-	float rotate = 0.0f;
 	float deltaTime = 0.01f;
 };

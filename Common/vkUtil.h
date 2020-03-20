@@ -21,6 +21,7 @@
 #include "PlayerController.h"
 
 #include <unordered_map>
+#include <map>
 #include <fstream>
 
 vk::ShaderModule CreateShaderModule(const std::string& path, vk::Device device);
@@ -190,7 +191,6 @@ struct Vulkan {
 	vk::RenderPass finalPass;
 
 	vk::DescriptorPool descPool;
-	std::vector<vk::DescriptorSet> descSets;
 	std::vector<vk::DescriptorSetLayout> descSetLayout;
 
 	vk::DescriptorSetLayout finalPassLayout;

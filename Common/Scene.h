@@ -17,13 +17,15 @@ struct Transform {
 struct Material {
 	std::string name;
 
-	uint32_t matCBIndex;
+	uint32_t matCBIndex = 0;
 	Texture* diffuse;
 
 	glm::mat4x4 matTransform;
 	glm::vec4 diffuseAlbedo;
 	glm::vec3 fresnelR0;
 	float roughness;
+
+	vk::DescriptorSet descSet;
 
 	bool dirtyFlag = true;
 };
@@ -32,7 +34,9 @@ struct GameObject {
 	std::string name;
 	Transform transform;
 	Material* material;
-	uint32_t objCBIndex;
+	uint32_t objCBIndex = 0;
+
+	vk::DescriptorSet descSet;
 
 	bool dirtyFlag = true;
 };
@@ -67,6 +71,9 @@ public:
 	void BindMaterial(GameObject* gameObject, Material* material);
 	void BindMaterial(std::string gameObject, std::string material);
 
+	//Get方法
+	GameObject* GetGameObject(std::string name);
+
 	//光照阴影方法
 	void SetAmbientLight(glm::vec3 strength);
 	void SetDirectionalLight(glm::vec3 direction, glm::vec3 strength);
@@ -75,6 +82,9 @@ public:
 	void SetShadowMap(uint32_t width, uint32_t height, glm::vec3 lightDirection, float radius);
 
 	void SetMainCamera(Camera* mainCamera);
+
+	//天空盒设定
+	void SetSkybox(std::wstring imagePath, float radius, uint32_t subdivision);
 
 	void UpdateObjectConstants();
 	void UpdatePassConstants();
@@ -89,10 +99,7 @@ public:
 	Vulkan* vkInfo;
 
 private:
-	uint32_t frameCount = 1;
-	uint32_t passCountPerFrame = 2;
-	uint32_t passCount = 0;
-	uint32_t descCount = 0;
+	uint32_t passCount = 2;
 
 	std::unordered_map<std::string, GameObject> gameObjects;
 	std::unordered_map<std::string, Material> materials;
@@ -101,7 +108,12 @@ private:
 	std::unique_ptr<Buffer<SkinnedVertex>> skinnedVertexBuffer;
 	std::unique_ptr<Buffer<uint32_t>> indexBuffer;
 
-	std::vector<std::unique_ptr<FrameResource>> frameResources;
+	std::unique_ptr<FrameResource> frameResources;
+
+	//Pass描述符
+	vk::DescriptorSet scenePassDesc;
+	vk::DescriptorSet shadowPassDesc;
+	vk::DescriptorSet drawShadowDesc;
 
 	//组件池
 	std::vector<MeshRenderer> meshRenderers;
@@ -120,4 +132,18 @@ private:
 
 	//相机
 	Camera* mainCamera;
+
+	//天空盒
+	struct {
+		bool use = false;
+		Texture image;
+		float radius;
+		uint32_t subdivision;
+
+		int startIndexLocation;
+		int baseVertexLocation;
+		int indexCount;
+
+		vk::DescriptorSet descSet;
+	}skybox;
 };

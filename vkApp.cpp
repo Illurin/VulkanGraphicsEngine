@@ -44,7 +44,7 @@ void VkApp::Initialize(uint32_t windowWidth, uint32_t windowHeight, HWND hWnd, H
 
 	/*Set validation layer*/
 #ifdef NDEBUG
-	const bool enableValidationLayers = false;
+	const bool enableValidationLayers = false;5
 #else
 	const bool enableValidationLayers = true;
 #endif
@@ -507,14 +507,6 @@ void VkApp::Start() {
 		textures.push_back(texture);
 	}
 
-	//加载立方体贴图
-	{
-		Texture texture;
-		LoadCubeMapWithWIC(L"Assets\\skybox.png", GUID_WICPixelFormat32bppRGBA, texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
-		texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
-		textures.push_back(texture);
-	}
-
 	//清理缓存
 	for (uint32_t i = 0; i < textures.size(); i++) {
 		textures[i].CleanUploader(&vkInfo.device);
@@ -523,21 +515,22 @@ void VkApp::Start() {
 	//向场景中添加材质
 	scene.CreateMaterial("sphere", &textures[0], glm::mat4x4(1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.05f, 0.05f, 0.05f), 0.8f);
 	scene.CreateMaterial("brick", &textures[1], glm::mat4x4(1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.5f, 0.5f, 0.5f), 0.01f);
-	scene.CreateMaterial("skybox", &textures[4], glm::mat4x4(1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0.0f);
-
+	
 	//向场景中添加物体
-	scene.CreatePlane("plane", 30.0f, 30.0f, 10, 10);
-	scene.CreateGeosphere("skybox", 0.5f, 6);
+	GameObject* plane = scene.CreatePlane("plane", 30.0f, 30.0f, 10, 10);
+	plane->transform.position = glm::vec3(0.0f, -1.0f, 0.0f);
 	GameObject* sphere = scene.CreateGeosphere("sphere", 0.5f, 8);
 	sphere->transform.position = glm::vec3(0.0f, 1.0f, 1.0f);
 
 	//绑定物体和材质
 	scene.BindMaterial("sphere", "sphere");
 	scene.BindMaterial("plane", "brick");
-	scene.BindMaterial("skybox", "skybox");
 
 	/*初始化阴影贴图*/
 	scene.SetShadowMap(vkInfo.width, vkInfo.height, glm::normalize(glm::vec3(-1.0f, 0.0f, 1.0f) - glm::vec3(1.0f, 1.0f, 0.0f)), 100.0f);
+
+	/*初始化天空盒*/
+	scene.SetSkybox(L"Assets\\skybox.png", 0.5f, 8);
 
 	scene.SetupVertexBuffer();
 	scene.SetupDescriptors();
@@ -545,10 +538,10 @@ void VkApp::Start() {
 }
 
 void VkApp::Loop() {
+	Update();
 	scene.UpdateObjectConstants();
 	scene.UpdatePassConstants();
 	scene.UpdateMaterialConstants();
-	Update();
 
 	//Begin record commands
 	auto cmdBeginInfo = vk::CommandBufferBeginInfo()
@@ -581,7 +574,7 @@ void VkApp::Loop() {
 		.setPWaitDstStageMask(dstStageMask);
 	vkInfo.queue.submit(1, &submitInfo, vkInfo.fence);
 
-	//17.11 Wait for GPU to be finished4
+	//17.11 Wait for GPU to be finished
 	vk::Result waitingRes;
 	do
 		waitingRes = vkInfo.device.waitForFences(1, &vkInfo.fence, VK_TRUE, UINT64_MAX);
@@ -601,7 +594,8 @@ void VkApp::Loop() {
 void VkApp::Update() {
 	//Update
 	vkInfo.input.Update();
-	rotate += glm::pi<float>() * deltaTime;
+	scene.GetGameObject("sphere")->transform.localEulerAngle.y += glm::pi<float>() * deltaTime;
+	scene.GetGameObject("sphere")->dirtyFlag = true;
 
 	/*更新摄像机*/
 	float rotateSpeed = glm::pi<float>() * 0.007f;
