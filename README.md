@@ -3,13 +3,11 @@
 
 ## 重构之后的封装引擎框架
 
-已完成：MeshRenderer和GameObject的封装
+已完成：MeshRenderer和GameObject的封装，Skybox的开启，拆分描述符的管理
 
-待完成：SkinnedMeshRenderer，ParticleSystem，Skybox，PostProcessing的封装，以及和GameObject对象的关联，Model的封装
+待完成：SkinnedMeshRenderer，ParticleSystem，PostProcessing的封装，以及和GameObject对象的关联，Model的封装
 
-待改善：Pipeline的管理，描述符的管理，GameObject的创建和材质的绑定，VkApp的结构
-
-存在bug待修复
+待改善：Pipeline的管理，GameObject的创建和材质的绑定，VkApp的结构
 
 ## 语法结构
 创建物体对象：
