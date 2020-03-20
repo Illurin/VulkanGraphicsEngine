@@ -1,7 +1,7 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-##重构之后的封装引擎框架
+## 重构之后的封装引擎框架
 
 已完成：MeshRenderer和GameObject的封装
 
@@ -11,7 +11,7 @@
 
 存在bug待修复
 
-##语法结构
+## 语法结构
 创建物体对象：
 ```
 GameObject* sphere = scene.CreateGeosphere("sphere", 0.5f, 8);
