@@ -338,3 +338,30 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/Assets
+/Shaders/Common.hlsl
+/Shaders/Combine.hlsl
+/Shaders/BlurV.hlsl
+/Shaders/BlurH.hlsl
+/Shaders/BloomVS.hlsl
+/Shaders/BloomPS.hlsl
+/Shaders/CompileSkyboxHLSL.bat
+/Shaders/CompileSkinnedHLSL.bat
+/Shaders/CompileShadowHLSL.bat
+/Shaders/CompileParticleHLSL.bat
+/Shaders/CompileHLSL.bat
+/Shaders/CompileBlurHLSL.bat
+/Shaders/CompileBloomHLSL.bat
+/Shaders/ParticleGS.hlsl
+/Shaders/LightingUtil.hlsl
+/Shaders/VertexShader.hlsl
+/Shaders/SkyboxVS.hlsl
+/Shaders/SkyboxPS.hlsl
+/Shaders/SkinnedVS.hlsl
+/Shaders/SkinnedPS.hlsl
+/Shaders/ShadowVS.hlsl
+/Shaders/ShadowSkinnedVS.hlsl
+/Shaders/ShadowPS.hlsl
+/Shaders/PixelShader.hlsl
+/Shaders/ParticleVS.hlsl
+/Shaders/ParticlePS.hlsl

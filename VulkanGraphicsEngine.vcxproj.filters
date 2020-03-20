@@ -5,14 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="着色器">
       <UniqueIdentifier>{f72fabb9-fd5a-47c6-a82c-86474968a2d7}</UniqueIdentifier>
     </Filter>
@@ -51,18 +43,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="VulkanGraphicsEngine.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Common\Texture.h">
       <Filter>素材加载库</Filter>
     </ClInclude>
@@ -71,9 +51,6 @@
     </ClInclude>
     <ClInclude Include="Common\FrameResource.h">
       <Filter>Vulkan辅助库</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderStructure.h">
-      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Common\Camera.h">
       <Filter>控制模块辅助库</Filter>
@@ -105,8 +82,11 @@
     <ClInclude Include="Common\Scene.h">
       <Filter>引擎框架</Filter>
     </ClInclude>
-    <ClInclude Include="Common\Component.h">
+    <ClInclude Include="Common\PipelineManagement.h">
       <Filter>引擎框架</Filter>
+    </ClInclude>
+    <ClInclude Include="vkApp.h">
+      <Filter>源文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -118,9 +98,6 @@
     </ClCompile>
     <ClCompile Include="Common\vkUtil.cpp">
       <Filter>Vulkan辅助库</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderStructure.cpp">
-      <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Common\Camera.cpp">
       <Filter>控制模块辅助库</Filter>
@@ -152,19 +129,12 @@
     <ClCompile Include="Common\Scene.cpp">
       <Filter>引擎框架</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="VulkanGraphicsEngine.rc">
-      <Filter>资源文件</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="VulkanGraphicsEngine.ico">
-      <Filter>资源文件</Filter>
-    </Image>
+    <ClCompile Include="Common\PipelineManagement.cpp">
+      <Filter>引擎框架</Filter>
+    </ClCompile>
+    <ClCompile Include="vkApp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common.hlsl">

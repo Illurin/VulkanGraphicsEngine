@@ -16,8 +16,8 @@ public:
 	void PrepareFramebuffer(vk::Device* device);
 
 	void BeginRenderPass(vk::CommandBuffer* cmd);
-	vk::ImageView GetImageView()const { return shadowMapView; }
 	vk::RenderPass GetRenderPass()const { return renderPass; }
+	vk::ImageView GetImageView()const { return shadowMapView; }
 	glm::mat4x4 GetLightViewMatrix()const { return lightView; }
 	glm::mat4x4 GetLightProjMatrix()const { return lightProj; }
 	glm::mat4x4 GetShadowTransform()const { return shadowTransform; }

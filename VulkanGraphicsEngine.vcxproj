@@ -154,11 +154,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common\Camera.h" />
-    <ClInclude Include="Common\Component.h" />
     <ClInclude Include="Common\FrameResource.h" />
     <ClInclude Include="Common\GeometryGenerator.h" />
     <ClInclude Include="Common\Model.h" />
     <ClInclude Include="Common\ParticleSystem.h" />
+    <ClInclude Include="Common\PipelineManagement.h" />
     <ClInclude Include="Common\PlayerController.h" />
     <ClInclude Include="Common\PostProcessing.h" />
     <ClInclude Include="Common\Scene.h" />
@@ -167,17 +167,14 @@
     <ClInclude Include="Common\SkinnedModel.h" />
     <ClInclude Include="Common\Texture.h" />
     <ClInclude Include="Common\vkUtil.h" />
-    <ClInclude Include="framework.h" />
-    <ClInclude Include="RenderStructure.h" />
-    <ClInclude Include="Resource.h" />
-    <ClInclude Include="targetver.h" />
-    <ClInclude Include="VulkanGraphicsEngine.h" />
+    <ClInclude Include="vkApp.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\Camera.cpp" />
     <ClCompile Include="Common\GeometryGenerator.cpp" />
     <ClCompile Include="Common\Model.cpp" />
     <ClCompile Include="Common\ParticleSystem.cpp" />
+    <ClCompile Include="Common\PipelineManagement.cpp" />
     <ClCompile Include="Common\PlayerController.cpp" />
     <ClCompile Include="Common\PostProcessing.cpp" />
     <ClCompile Include="Common\Scene.cpp" />
@@ -186,15 +183,8 @@
     <ClCompile Include="Common\SkinnedModel.cpp" />
     <ClCompile Include="Common\Texture.cpp" />
     <ClCompile Include="Common\vkUtil.cpp" />
-    <ClCompile Include="RenderStructure.cpp" />
+    <ClCompile Include="vkApp.cpp" />
     <ClCompile Include="VulkanGraphicsEngine.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="VulkanGraphicsEngine.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico" />
-    <Image Include="VulkanGraphicsEngine.ico" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\BloomPS.hlsl">

@@ -4,6 +4,14 @@
 #define NUM_BONES_PER_VERTEX 4
 #define MAX_BONE_NUM 500
 
+#include <SDKDDKVer.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <memory.h>
+#include <tchar.h>
+
 #include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_win32.h"
 #include "glm/glm.hpp"
@@ -100,7 +108,7 @@ struct SkinnedVertex {
 };
 
 struct Light {
-	glm::vec3 strength;
+	glm::vec3 strength = glm::vec3(0.0f);
 	float fallOffStart;					   //point/spot light only
 	glm::vec3 direction;					   //directional/spot light only
 	float fallOffEnd;					   //point/spot light only
@@ -116,7 +124,7 @@ struct PassConstants {
 	glm::vec4 eyePos;
 	glm::vec4 ambientLight;
 
-	Light lights[1];
+	Light lights[3];
 };
 
 struct ObjectConstants {
@@ -132,18 +140,6 @@ struct MaterialConstants {
 
 struct SkinnedConstants {
 	glm::mat4x4 boneTransforms[MAX_BONE_NUM];
-};
-
-struct Material {
-	std::string name;
-
-	uint32_t matCBIndex;
-	uint32_t diffuseIndex;
-
-	glm::mat4x4 matTransform;
-	glm::vec4 diffuseAlbedo;
-	glm::vec3 fresnelR0;
-	float roughness;
 };
 
 /*=============================================================================================*/
@@ -191,16 +187,16 @@ struct Vulkan {
 	std::unordered_map<std::string, vk::PipelineLayout> pipelineLayout;
 
 	vk::RenderPass scenePass;
-	vk::RenderPass combinePass;
+	vk::RenderPass finalPass;
 
 	vk::DescriptorPool descPool;
 	std::vector<vk::DescriptorSet> descSets;
 	std::vector<vk::DescriptorSetLayout> descSetLayout;
 
-	vk::DescriptorSetLayout combinePassLayout;
-	std::vector<vk::DescriptorSet> combinePassDescSets;
+	vk::DescriptorSetLayout finalPassLayout;
+	std::vector<vk::DescriptorSet> finalPassDescSets;
 
-	std::vector<vk::Framebuffer> combineFramebuffers;
+	std::vector<vk::Framebuffer> finalFramebuffers;
 
 	std::vector<const char*> instanceExtensions;
 	std::vector<const char*> deviceExtensions;
