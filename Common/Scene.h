@@ -1,65 +1,11 @@
 #pragma once
+#include "AssetContent.h"
 #include "GeometryGenerator.h"
 #include "SkinnedData.h"
 #include "FrameResource.h"
-#include "Texture.h"
 #include "ShadowMap.h"
 #include "Camera.h"
 #include "SkinnedModel.h"
-
-struct Transform {
-	glm::vec3 position = glm::vec3(0.0f);
-	glm::vec3 scale = glm::vec3(1.0f);
-	glm::vec3 eulerAngle = glm::vec3(0.0f);
-	glm::vec3 localEulerAngle = glm::vec3(0.0f);
-};
-
-struct Material {
-	std::string name;
-
-	uint32_t matCBIndex = 0;
-	Texture* diffuse;
-
-	glm::mat4x4 matTransform;
-	glm::vec4 diffuseAlbedo;
-	glm::vec3 fresnelR0;
-	float roughness;
-
-	vk::DescriptorSet descSet;
-
-	bool dirtyFlag = true;
-};
-
-struct GameObject {
-	std::string name;
-	Transform transform;
-	Material* material;
-	uint32_t objCBIndex = 0;
-
-	vk::DescriptorSet descSet;
-
-	bool dirtyFlag = true;
-};
-
-struct MeshRenderer {
-	GameObject* gameObject;
-
-	int baseVertexLocation;
-	int startIndexLocation;
-
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-};
-
-struct SkinnedMeshRenderer {
-	GameObject* gameObject;
-
-	int baseVertexLocation;
-	int startIndexLocation;
-
-	std::vector<SkinnedVertex> vertices;
-	std::vector<uint32_t> indices;
-};
 
 class Scene {
 public:
@@ -67,6 +13,8 @@ public:
 	GameObject* CreatePlane(std::string name, float width, float depth, float texRepeatX, float texRepeatY);
 	GameObject* CreateGeosphere(std::string name, float radius, uint32_t numSubdivison);
 	Material* CreateMaterial(std::string name, Texture* diffuse, glm::mat4x4 matTransform, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness);
+
+	GameObject* LoadModel(std::string name, std::string modelPath, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness);
 
 	void BindMaterial(GameObject* gameObject, Material* material);
 	void BindMaterial(std::string gameObject, std::string material);
@@ -100,6 +48,8 @@ public:
 
 private:
 	uint32_t passCount = 2;
+
+	AssetContent* assetContent;
 
 	std::unordered_map<std::string, GameObject> gameObjects;
 	std::unordered_map<std::string, Material> materials;

@@ -49,6 +49,15 @@ Material* Scene::CreateMaterial(std::string name, Texture* diffuse, glm::mat4x4 
 	return &materials[name];
 }
 
+GameObject* Scene::LoadModel(std::string name, std::string modelPath, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness) {
+	Model model(modelPath);
+
+	for (size_t i = 0; i < model.renderInfo.size(); i++) {
+		MeshRenderer meshRenderer;
+
+	}
+}
+
 void Scene::BindMaterial(GameObject* gameObject, Material* material) {
 	gameObject->material = material;
 }
