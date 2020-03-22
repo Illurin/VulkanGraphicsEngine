@@ -1,74 +1,50 @@
 #include "Scene.h"
 
-GameObject* Scene::CreatePlane(std::string name, float width, float depth, float texRepeatX, float texRepeatY) {
-	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData meshData = geoGen.CreatePlane(width, depth, texRepeatX, texRepeatY);
-
-	GameObject gameObject;
-	gameObject.name = name;
-
-	MeshRenderer meshRenderer;
-	meshRenderer.vertices = meshData.vertices;
-	meshRenderer.indices = meshData.indices;
-
-	gameObjects[name] = gameObject;
-	meshRenderer.gameObject = &gameObjects[name];
-	meshRenderers.push_back(meshRenderer);
-
-	return &gameObjects[name];
-}
-
-GameObject* Scene::CreateGeosphere(std::string name, float radius, uint32_t numSubdivison) {
-	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData meshData = geoGen.CreateGeosphere(radius, numSubdivison);
-
-	GameObject gameObject;
-	gameObject.name = name;
-
-	MeshRenderer meshRenderer;
-	meshRenderer.vertices = meshData.vertices;
-	meshRenderer.indices = meshData.indices;
-
-	gameObjects[name] = gameObject;
-	meshRenderer.gameObject = &gameObjects[name];
-	meshRenderers.push_back(meshRenderer);
-
-	return &gameObjects[name];
-}
-
-Material* Scene::CreateMaterial(std::string name, Texture* diffuse, glm::mat4x4 matTransform, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness) {
-	Material material;
-	material.name = name;
-	material.matCBIndex = materials.size();
-	material.diffuse = diffuse;
-	material.diffuseAlbedo = diffuseAlbedo;
-	material.fresnelR0 = fresnelR0;
-	material.matTransform = matTransform;
-	material.roughness = roughness;
-	materials[name] = material;
-	return &materials[name];
-}
-
-GameObject* Scene::LoadModel(std::string name, std::string modelPath, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness) {
-	Model model(modelPath);
-
-	for (size_t i = 0; i < model.renderInfo.size(); i++) {
-		MeshRenderer meshRenderer;
-
+void Scene::AddGameObject(GameObject& gameObject, GameObject* parent) {
+	if (gameObjects.find(gameObject.name) != gameObjects.end()) {
+		MessageBox(0, L"Cannot add the same material", 0, 0);
+		return;
 	}
+	if(parent)
+		gameObject.parent = parent;
+
+	gameObjects[gameObject.name] = gameObject;
+	if (!parent)
+		rootObjects.push_back(&gameObjects[gameObject.name]);
+	else
+		parent->children.push_back(&gameObjects[gameObject.name]);
 }
 
-void Scene::BindMaterial(GameObject* gameObject, Material* material) {
-	gameObject->material = material;
+void Scene::AddMaterial(Material& material) {
+	if (materials.find(material.name) != materials.end()) {
+		MessageBox(0, L"Cannot add the same material", 0, 0);
+		return;
+	}
+	materials[material.name] = material;
 }
 
-void Scene::BindMaterial(std::string gameObject, std::string material) {
-	gameObjects[gameObject].material = &materials[material];
+void Scene::AddMeshRenderer(GameObject* gameObject, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
+	MeshRenderer meshRenderer;
+	meshRenderer.vertices = vertices;
+	meshRenderer.indices = indices;
+	meshRenderer.gameObject = gameObject;
+	meshRenderers.push_back(meshRenderer);
 }
 
 GameObject* Scene::GetGameObject(std::string name) {
-	GameObject* gameObject = &gameObjects[name];
-	return gameObject;
+	if (gameObjects.find(name) == gameObjects.end()) {
+		MessageBox(0, L"Cannot find the game object", 0, 0);
+		return 0;
+	}
+	return &gameObjects[name];
+}
+
+Material* Scene::GetMaterial(std::string name) {
+	if (materials.find(name) == materials.end()) {
+		MessageBox(0, L"Cannot find the material", 0, 0);
+		return 0;
+	}
+	return &materials[name];
 }
 
 void Scene::SetAmbientLight(glm::vec3 strength) {
@@ -107,30 +83,37 @@ void Scene::SetMainCamera(Camera* mainCamera) {
 	this->mainCamera = mainCamera;
 }
 
-void Scene::SetSkybox(std::wstring imagePath, float radius, uint32_t subdivision) {
+void Scene::SetSkybox(Texture image, float radius, uint32_t subdivision) {
 	skybox.use = true;
-	LoadCubeMapWithWIC(imagePath.c_str(), GUID_WICPixelFormat32bppRGBA, skybox.image, &vkInfo->device, vkInfo->gpu.getMemoryProperties());
-	skybox.image.SetupImage(&vkInfo->device, vkInfo->gpu.getMemoryProperties(), vkInfo->cmdPool, &vkInfo->queue);
+	skybox.image = image;
 	skybox.subdivision = subdivision;
 	skybox.radius = radius;
 }
 
+void Scene::CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld) {
+	if (gameObject->dirtyFlag) {
+		glm::mat4x4 LR = glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::mat4x4 S = glm::scale(glm::mat4(1.0f), glm::vec3(gameObject->transform.scale));
+		glm::mat4x4 T = glm::translate(glm::mat4(1.0f), glm::vec3(gameObject->transform.position));
+		glm::mat4x4 GR = glm::rotate(glm::mat4(1.0f), gameObject->transform.eulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), gameObject->transform.eulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), gameObject->transform.eulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
+		gameObject->toParent = GR * T * S * LR;
+		gameObject->dirtyFlag = false;
+	}
+	ObjectConstants objectConstants;
+	objectConstants.worldMatrix = parentToWorld * gameObject->toParent;
+	frameResources->objCB[gameObject->objCBIndex]->CopyData(&vkInfo->device, 0, 1, &objectConstants);
+	for (auto& child : gameObject->children) {
+		CalcCildTransform(child, objectConstants.worldMatrix);
+	}
+}
+
 void Scene::UpdateObjectConstants() {
-	for (auto& gameObject : gameObjects) {
-		if (gameObject.second.dirtyFlag) {
-			glm::mat4x4 LR = glm::rotate(glm::mat4(1.0f), gameObject.second.transform.localEulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
-				* glm::rotate(glm::mat4(1.0f), gameObject.second.transform.localEulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::rotate(glm::mat4(1.0f), gameObject.second.transform.localEulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
-			glm::mat4x4 S = glm::scale(glm::mat4(1.0f), glm::vec3(gameObject.second.transform.scale));
-			glm::mat4x4 T = glm::translate(glm::mat4(1.0f), glm::vec3(gameObject.second.transform.position));
-			glm::mat4x4 GR = glm::rotate(glm::mat4(1.0f), gameObject.second.transform.eulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
-				* glm::rotate(glm::mat4(1.0f), gameObject.second.transform.eulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::rotate(glm::mat4(1.0f), gameObject.second.transform.eulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
-			ObjectConstants objectConstants;
-			objectConstants.worldMatrix = GR * T * S * LR;
-			frameResources->objCB[gameObject.second.objCBIndex]->CopyData(&vkInfo->device, 0, 1, &objectConstants);
-			gameObject.second.dirtyFlag = false;
-		}
+	for (auto& root : rootObjects) {
+		CalcCildTransform(root, glm::mat4(1.0f));
 	}
 }
 
@@ -712,7 +695,7 @@ void Scene::PreparePipeline() {
 		.setVertexAttributeDescriptionCount(3)
 		.setPVertexAttributeDescriptions(vkInfo->vertex.attrib.data());
 
-	//Input assembly state
+	//Input assembly state5
 	auto iaInfo = vk::PipelineInputAssemblyStateCreateInfo()
 		.setTopology(vk::PrimitiveTopology::eTriangleList)
 		.setPrimitiveRestartEnable(VK_FALSE);

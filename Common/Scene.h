@@ -1,26 +1,22 @@
 #pragma once
-#include "AssetContent.h"
 #include "GeometryGenerator.h"
+#include "SkinnedModel.h"
+#include "Component.h"
 #include "SkinnedData.h"
 #include "FrameResource.h"
 #include "ShadowMap.h"
 #include "Camera.h"
-#include "SkinnedModel.h"
 
 class Scene {
 public:
-	//Create方法
-	GameObject* CreatePlane(std::string name, float width, float depth, float texRepeatX, float texRepeatY);
-	GameObject* CreateGeosphere(std::string name, float radius, uint32_t numSubdivison);
-	Material* CreateMaterial(std::string name, Texture* diffuse, glm::mat4x4 matTransform, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness);
+	void AddGameObject(GameObject& gameObject, GameObject* parent);
+	void AddMaterial(Material& material);
 
-	GameObject* LoadModel(std::string name, std::string modelPath, glm::vec4 diffuseAlbedo, glm::vec3 fresnelR0, float roughness);
-
-	void BindMaterial(GameObject* gameObject, Material* material);
-	void BindMaterial(std::string gameObject, std::string material);
+	void AddMeshRenderer(GameObject* gameObject, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 
 	//Get方法
 	GameObject* GetGameObject(std::string name);
+	Material* GetMaterial(std::string name);
 
 	//光照阴影方法
 	void SetAmbientLight(glm::vec3 strength);
@@ -32,7 +28,7 @@ public:
 	void SetMainCamera(Camera* mainCamera);
 
 	//天空盒设定
-	void SetSkybox(std::wstring imagePath, float radius, uint32_t subdivision);
+	void SetSkybox(Texture image, float radius, uint32_t subdivision);
 
 	void UpdateObjectConstants();
 	void UpdatePassConstants();
@@ -47,9 +43,11 @@ public:
 	Vulkan* vkInfo;
 
 private:
+	void CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld);
+
 	uint32_t passCount = 2;
 
-	AssetContent* assetContent;
+	std::vector<GameObject*> rootObjects;
 
 	std::unordered_map<std::string, GameObject> gameObjects;
 	std::unordered_map<std::string, Material> materials;

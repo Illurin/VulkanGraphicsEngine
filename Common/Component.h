@@ -31,6 +31,10 @@ struct GameObject {
 	Material* material;
 	uint32_t objCBIndex = 0;
 
+	GameObject* parent;
+	std::vector<GameObject*> children;
+
+	glm::mat4x4 toParent;
 	vk::DescriptorSet descSet;
 
 	bool dirtyFlag = true;

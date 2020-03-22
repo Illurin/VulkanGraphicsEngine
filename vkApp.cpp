@@ -488,49 +488,74 @@ void VkApp::Start() {
 	//创建一个点光
 	scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
 
-	//将所有要用到的贴图并放在一个vector容器里
-	std::vector<Texture> textures;
-
-	//贴图的目录
-	std::vector<std::string> texturePath = {
-		"Assets\\icon.jpg",
+	//利用Texture辅助库加载图片
+	std::vector<std::unique_ptr<Texture>> textures;
+	std::string texturePath[] = {
 		"Assets\\brickTexture.jpg",
-		"Assets\\flame.png",
-		"Assets\\SmokeLoop.png"
+		"Assets\\icon.jpg"
 	};
-
-	//加载目录下的所有贴图
-	for (uint32_t i = 0; i < texturePath.size(); i++) {
-		Texture texture;
-		LoadPixelWithSTB(texturePath[i].c_str(), 32, texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
-		texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
-		textures.push_back(texture);
+	for (size_t i = 0; i < 2; i++) {
+		auto texture = std::make_unique<Texture>();
+		LoadPixelWithSTB(texturePath[i].c_str(), 32, *texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+		texture->SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+		texture->CleanUploader(&vkInfo.device);
+		textures.push_back(std::move(texture));
 	}
+	//加载立方体贴图
+	Texture cubeMap;
+	LoadCubeMapWithWIC(L"Assets\\skybox.png", GUID_WICPixelFormat32bppRGBA, cubeMap, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+	cubeMap.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+	cubeMap.CleanUploader(&vkInfo.device);
 
-	//清理缓存
-	for (uint32_t i = 0; i < textures.size(); i++) {
-		textures[i].CleanUploader(&vkInfo.device);
-	}
+	//创建用于光照的材质
+	Material brick_mat;
+	brick_mat.name = "brick";
+	brick_mat.diffuse = textures[0].get();
+	brick_mat.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+	brick_mat.fresnelR0 = glm::vec3(0.5f, 0.5f, 0.5f);
+	brick_mat.roughness = 0.01f;
+	brick_mat.matTransform = glm::mat4(1.0f);
 
-	//向场景中添加材质
-	scene.CreateMaterial("sphere", &textures[0], glm::mat4x4(1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.05f, 0.05f, 0.05f), 0.8f);
-	scene.CreateMaterial("brick", &textures[1], glm::mat4x4(1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.5f, 0.5f, 0.5f), 0.01f);
-	
-	//向场景中添加物体
-	GameObject* plane = scene.CreatePlane("plane", 30.0f, 30.0f, 10, 10);
-	plane->transform.position = glm::vec3(0.0f, -1.0f, 0.0f);
-	GameObject* sphere = scene.CreateGeosphere("sphere", 0.5f, 8);
-	sphere->transform.position = glm::vec3(0.0f, 1.0f, 1.0f);
+	Material sphere_mat;
+	sphere_mat.name = "sphere";
+	sphere_mat.diffuse = textures[1].get();
+	sphere_mat.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+	sphere_mat.fresnelR0 = glm::vec3(0.05f, 0.05f, 0.05f);
+	sphere_mat.roughness = 0.8f;
+	sphere_mat.matTransform = glm::mat4(1.0f);
 
-	//绑定物体和材质
-	scene.BindMaterial("sphere", "sphere");
-	scene.BindMaterial("plane", "brick");
+	//将材质添加进场景中
+	scene.AddMaterial(brick_mat);
+	scene.AddMaterial(sphere_mat);
+
+	//利用GameObject类创建场景中的物件
+	GameObject plane_obj;
+	plane_obj.name = "plane";
+	plane_obj.material = scene.GetMaterial("brick");
+	plane_obj.transform.position = glm::vec3(0.0f, -1.0f, 0.0f);
+
+	GameObject sphere_obj;
+	sphere_obj.name = "sphere";
+	sphere_obj.material = scene.GetMaterial("sphere");
+	sphere_obj.transform.position = glm::vec3(0.0f, 1.0f, 2.0f);
+
+	//将物体添加进场景当中
+	scene.AddGameObject(plane_obj, 0);
+	scene.AddGameObject(sphere_obj, 0);
+
+	//为物体添加渲染组件
+	//使用GeometryGenerator库来辅助创建
+	GeometryGenerator geoGen;
+	GeometryGenerator::MeshData plane_mesh = geoGen.CreatePlane(30.0f, 30.0f, 10, 10);
+	scene.AddMeshRenderer(scene.GetGameObject("plane"), plane_mesh.vertices, plane_mesh.indices);
+	GeometryGenerator::MeshData sphere_mesh = geoGen.CreateGeosphere(0.5f, 8);
+	scene.AddMeshRenderer(scene.GetGameObject("sphere"), sphere_mesh.vertices, sphere_mesh.indices);
 
 	/*初始化阴影贴图*/
 	scene.SetShadowMap(vkInfo.width, vkInfo.height, glm::normalize(glm::vec3(-1.0f, 0.0f, 1.0f) - glm::vec3(1.0f, 1.0f, 0.0f)), 100.0f);
 
 	/*初始化天空盒*/
-	scene.SetSkybox(L"Assets\\skybox.png", 0.5f, 8);
+	scene.SetSkybox(cubeMap, 0.5f, 8);
 
 	scene.SetupVertexBuffer();
 	scene.SetupDescriptors();

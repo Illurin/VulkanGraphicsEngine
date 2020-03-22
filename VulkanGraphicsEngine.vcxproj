@@ -154,11 +154,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common\Camera.h" />
+    <ClInclude Include="Common\Component.h" />
     <ClInclude Include="Common\FrameResource.h" />
     <ClInclude Include="Common\GeometryGenerator.h" />
     <ClInclude Include="Common\Model.h" />
     <ClInclude Include="Common\ParticleSystem.h" />
-    <ClInclude Include="Common\PipelineManagement.h" />
     <ClInclude Include="Common\PlayerController.h" />
     <ClInclude Include="Common\PostProcessing.h" />
     <ClInclude Include="Common\Scene.h" />
@@ -174,7 +174,6 @@
     <ClCompile Include="Common\GeometryGenerator.cpp" />
     <ClCompile Include="Common\Model.cpp" />
     <ClCompile Include="Common\ParticleSystem.cpp" />
-    <ClCompile Include="Common\PipelineManagement.cpp" />
     <ClCompile Include="Common\PlayerController.cpp" />
     <ClCompile Include="Common\PostProcessing.cpp" />
     <ClCompile Include="Common\Scene.cpp" />

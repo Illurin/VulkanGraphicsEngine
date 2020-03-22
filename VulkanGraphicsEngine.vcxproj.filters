@@ -82,11 +82,11 @@
     <ClInclude Include="Common\Scene.h">
       <Filter>引擎框架</Filter>
     </ClInclude>
-    <ClInclude Include="Common\PipelineManagement.h">
-      <Filter>引擎框架</Filter>
-    </ClInclude>
     <ClInclude Include="vkApp.h">
       <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Component.h">
+      <Filter>引擎框架</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -127,9 +127,6 @@
       <Filter>素材加载库</Filter>
     </ClCompile>
     <ClCompile Include="Common\Scene.cpp">
-      <Filter>引擎框架</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\PipelineManagement.cpp">
       <Filter>引擎框架</Filter>
     </ClCompile>
     <ClCompile Include="vkApp.cpp">
