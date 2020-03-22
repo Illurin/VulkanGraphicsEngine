@@ -1,6 +1,8 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
+![效果图](https://github.com/IllusionRing/VulkanGraphicsEngine/blob/engine/%E6%BC%94%E7%A4%BA%E5%9B%BE%E7%89%87.png)
+
 ## 重构后的代码框架
 
 已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构
