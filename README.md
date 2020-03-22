@@ -9,7 +9,21 @@
 
 待改善：Pipeline的管理，VkApp的结构
 
-## 创建场景的正确打开方式
+## Scene类的正确打开方式
+初始化：
+```
+//初始化场景系统
+	scene.vkInfo = &vkInfo;
+
+	mainCamera = Camera((float)vkInfo.width / (float)vkInfo.height);
+	mainCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	scene.SetAmbientLight(glm::vec4(0.3f, 0.3f, 0.3f, 0.3f));
+	scene.SetMainCamera(&mainCamera);
+
+	//创建一个点光
+	scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
+```
 创建物体对象：
 ```
   //利用Texture辅助库加载图片
@@ -107,4 +121,50 @@ texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdP
 ```
 LoadPixelWithSTB(texturePath[i].c_str(), 32, texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
 texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+```
+
+### 加载模型类
+```
+/*使用Model类加载没有蒙皮动画的模型*/
+	Model model("Assets\\model.fbx");
+	//使用图片的文件名称作为GameObject的名称
+	std::vector<std::string> meshNames;
+
+	std::vector<std::unique_ptr<Texture>> modelTextures;
+	for (size_t i = 0; i < model.texturePath.size(); i++) {
+		auto texture = std::make_unique<Texture>();
+		meshNames.push_back(model.texturePath[i].substr(model.texturePath[i].find_last_of('|') + 1, model.texturePath[i].length() - 1));
+		
+		//使用STB库加载模型下的所有贴图并为其创建材质
+		LoadPixelWithSTB(model.texturePath[i].c_str(), 32, *texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+		texture->SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+		texture->CleanUploader(&vkInfo.device);
+		modelTextures.push_back(std::move(texture));
+
+		Material material;
+		material.name = meshNames[i];
+		material.diffuse = modelTextures[i].get();
+		material.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		material.fresnelR0 = glm::vec3(0.0f, 0.0f, 0.0f);
+		material.matTransform = glm::mat4(1.0f);
+		material.roughness = 0.8f;
+		scene.AddMaterial(material);
+	}
+
+	//创建一个GameObject作为模型的父物件
+	GameObject modelObject;
+	modelObject.name = "morisaModel";
+	modelObject.transform.position = glm::vec3(-2.0f, -1.0f, 0.0f);
+	modelObject.transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
+	modelObject.transform.localEulerAngle = glm::vec3(-glm::pi<float>() * 0.5f, 0.0f, 0.0f);
+	scene.AddGameObject(modelObject, 0);
+
+	//加载模型的所有的Mesh并添加到modelObject下
+	for (size_t i = 0; i < model.renderInfo.size(); i++) {
+		GameObject childObject;
+		childObject.name = meshNames[i];
+		childObject.material = scene.GetMaterial(meshNames[i]);
+		scene.AddGameObject(childObject, scene.GetGameObject("morisaModel"));
+		scene.AddMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
+	}
 ```
