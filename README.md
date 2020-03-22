@@ -27,5 +27,39 @@ scene.BindMaterial("sphere", "sphere");
 scene.BindMaterial("plane", "brick");
 scene.BindMaterial("skybox", "skybox");
 ```
+获取场景中的物件：
+```
+scene.GetGameObject("sphere")；
+```
+此结构会修改
 
 修改Start方法和Update方法
+
+## 天空盒和阴影贴图
+设定场景的天空盒：
+```
+scene.SetSkybox(L"Assets\\skybox.png", 0.5f, 8);
+```
+第一个参数为图片的路径，后两个参数为球体的细分参数
+
+设定场景的阴影图：
+```
+scene.SetShadowMap(width, height, lightDirection, radius);
+```
+
+## 加载图片类
+使用WIC加载图片：
+```
+LoadPixelWithWIC(texturePath[i].c_str(), 32, texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+```
+使用WIC加载立方体图：
+```
+LoadCubeMapWithWIC(texturePath[i].c_str(), 32, texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+```
+使用STB加载图片：
+```
+LoadPixelWithSTB(texturePath[i].c_str(), 32, texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+```
