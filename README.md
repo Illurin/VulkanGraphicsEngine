@@ -1,7 +1,7 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-![效果图]()
+![效果图](Information/演示图片.png)
 
 ## 重构后的代码框架
 
