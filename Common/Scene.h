@@ -6,6 +6,7 @@
 #include "FrameResource.h"
 #include "ShadowMap.h"
 #include "Camera.h"
+#include "ParticleSystem.h"
 
 class Scene {
 public:
@@ -13,6 +14,7 @@ public:
 	void AddMaterial(Material& material);
 
 	void AddMeshRenderer(GameObject* gameObject, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+	void AddParticleSystem(GameObject* particle, GameObject* subParticle, ParticleSystem::Property& property, ParticleSystem::Emitter& emitter, ParticleSystem::Texture& texture, ParticleSystem::SubParticle& subParticleProperty);
 
 	//Get方法
 	GameObject* GetGameObject(std::string name);
@@ -33,6 +35,7 @@ public:
 	void UpdateObjectConstants();
 	void UpdatePassConstants();
 	void UpdateMaterialConstants();
+	void UpdateCPUParticleSystem(float deltaTime);
 
 	void SetupVertexBuffer();
 	void SetupDescriptors();
@@ -67,6 +70,7 @@ private:
 	std::vector<MeshRenderer> meshRenderers;
 	std::vector<SkinnedMeshRenderer> skinnedMeshRenderers;
 	std::vector<SkinnedModelInstance> skinnedModelInst;
+	std::vector<ParticleSystem> particleSystems;
 
 	//场景属性
 	//灯光

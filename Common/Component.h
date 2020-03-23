@@ -15,10 +15,10 @@ struct Material {
 	uint32_t matCBIndex = 0;
 	Texture* diffuse;
 
-	glm::mat4x4 matTransform;
-	glm::vec4 diffuseAlbedo;
-	glm::vec3 fresnelR0;
-	float roughness;
+	glm::mat4x4 matTransform = glm::mat4(1.0f);
+	glm::vec4 diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+	glm::vec3 fresnelR0 = glm::vec3(0.0f, 0.0f, 0.0f);
+	float roughness = 0.0f;
 
 	vk::DescriptorSet descSet;
 

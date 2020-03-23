@@ -1,6 +1,7 @@
 #pragma once
 #include "vkUtil.h"
 #include "Texture.h"
+#include "Component.h"
 #include <random>
 
 class ParticleSystem {
@@ -60,6 +61,9 @@ public:
 	void UpdateParticles(float deltaTime, vk::Device* device);
 	void DrawParticles(vk::CommandBuffer* cmd);
 	void DrawSubParticles(vk::CommandBuffer* cmd);
+
+	GameObject* particle;
+	GameObject* subParticle;
 
 private:
 	void InitParticles(Particle* particle);

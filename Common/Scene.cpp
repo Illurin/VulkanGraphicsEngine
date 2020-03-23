@@ -31,6 +31,17 @@ void Scene::AddMeshRenderer(GameObject* gameObject, std::vector<Vertex>& vertice
 	meshRenderers.push_back(meshRenderer);
 }
 
+void Scene::AddParticleSystem(GameObject* particle, GameObject* subParticle, ParticleSystem::Property& property, ParticleSystem::Emitter& emitter, ParticleSystem::Texture& texture, ParticleSystem::SubParticle& subParticleProperty) {
+	particleSystems.emplace_back(ParticleSystem());
+	particleSystems.back().SetEmitterProperty(emitter);
+	particleSystems.back().SetParticleProperty(property);
+	particleSystems.back().SetTextureProperty(texture);
+	particleSystems.back().SetSubParticle(subParticleProperty);
+	particleSystems.back().particle = particle;
+	particleSystems.back().subParticle = subParticle;
+	particleSystems.back().PrepareParticles(&vkInfo->device, vkInfo->gpu.getMemoryProperties());
+}
+
 GameObject* Scene::GetGameObject(std::string name) {
 	if (gameObjects.find(name) == gameObjects.end()) {
 		MessageBox(0, L"Cannot find the game object", 0, 0);
@@ -144,6 +155,12 @@ void Scene::UpdateMaterialConstants() {
 			frameResources->matCB[material.second.matCBIndex]->CopyData(&vkInfo->device, 0, 1, &materialConstants);
 			material.second.dirtyFlag = false;
 		}
+	}
+}
+
+void Scene::UpdateCPUParticleSystem(float deltaTime) {
+	for (auto& particleSystem : particleSystems) {
+		particleSystem.UpdateParticles(deltaTime, &vkInfo->device);
 	}
 }
 
@@ -903,6 +920,40 @@ void Scene::PreparePipeline() {
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(psModule);
 
+	//粒子的顶点输入装配属性
+	vk::VertexInputBindingDescription particleBinding;
+	std::vector<vk::VertexInputAttributeDescription> particleAttrib;
+
+	particleBinding.setBinding(0);
+	particleBinding.setInputRate(vk::VertexInputRate::eVertex);
+	particleBinding.setStride(sizeof(ParticleSystem::Particle));
+
+	particleAttrib.resize(4);
+
+	//glm::vec3 position
+	particleAttrib[0].setBinding(0);
+	particleAttrib[0].setFormat(vk::Format::eR32G32B32Sfloat);
+	particleAttrib[0].setLocation(0);
+	particleAttrib[0].setOffset(0);
+
+	//float size
+	particleAttrib[1].setBinding(0);
+	particleAttrib[1].setFormat(vk::Format::eR32Sfloat);
+	particleAttrib[1].setLocation(1);
+	particleAttrib[1].setOffset(sizeof(glm::vec3));
+
+	//glm::vec4 color
+	particleAttrib[2].setBinding(0);
+	particleAttrib[2].setFormat(vk::Format::eR32G32B32A32Sfloat);
+	particleAttrib[2].setLocation(2);
+	particleAttrib[2].setOffset(sizeof(glm::vec3) + sizeof(float));
+
+	//glm::vec4 texCoord
+	particleAttrib[3].setBinding(0);
+	particleAttrib[3].setFormat(vk::Format::eR32G32B32A32Sfloat);
+	particleAttrib[3].setLocation(3);
+	particleAttrib[3].setOffset(sizeof(glm::vec4) + sizeof(glm::vec3) + sizeof(float));
+
 	//编译用于粒子效果的着色器
 	vsModule = CreateShaderModule("Shaders\\particleVS.spv", vkInfo->device);
 	vk::ShaderModule gsModule = CreateShaderModule("Shaders\\particleGS.spv", vkInfo->device);
@@ -921,6 +972,46 @@ void Scene::PreparePipeline() {
 		.setPName("main")
 		.setModule(psModule)
 		.setStage(vk::ShaderStageFlagBits::eFragment);
+
+	//创建用于粒子效果的管线
+	dsInfo = vk::PipelineDepthStencilStateCreateInfo()
+		.setDepthTestEnable(VK_TRUE)
+		.setDepthWriteEnable(VK_FALSE)
+		.setDepthCompareOp(vk::CompareOp::eLessOrEqual)
+		.setDepthBoundsTestEnable(VK_FALSE)
+		.setStencilTestEnable(VK_FALSE);
+
+	attState.setBlendEnable(VK_TRUE);
+	attState.setColorBlendOp(vk::BlendOp::eAdd);
+	attState.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
+	attState.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha);
+	attState.setAlphaBlendOp(vk::BlendOp::eAdd);
+	attState.setSrcAlphaBlendFactor(vk::BlendFactor::eZero);
+	attState.setDstAlphaBlendFactor(vk::BlendFactor::eOne);
+
+	cbInfo = vk::PipelineColorBlendStateCreateInfo()
+		.setLogicOpEnable(VK_FALSE)
+		.setAttachmentCount(1)
+		.setPAttachments(&attState)
+		.setLogicOp(vk::LogicOp::eNoOp);
+
+	iaInfo.setTopology(vk::PrimitiveTopology::ePointList);
+
+	viInfo = vk::PipelineVertexInputStateCreateInfo()
+		.setVertexBindingDescriptionCount(1)
+		.setPVertexBindingDescriptions(&particleBinding)
+		.setVertexAttributeDescriptionCount(particleAttrib.size())
+		.setPVertexAttributeDescriptions(particleAttrib.data());
+
+	vkInfo->pipelines["smoke"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+
+	attState.setDstColorBlendFactor(vk::BlendFactor::eOne);
+
+	vkInfo->pipelines["flame"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+
+	vkInfo->device.destroyShaderModule(vsModule);
+	vkInfo->device.destroyShaderModule(gsModule);
+	vkInfo->device.destroyShaderModule(psModule);
 }
 
 void Scene::DrawObject(uint32_t currentBuffer) {
@@ -941,7 +1032,7 @@ void Scene::DrawObject(uint32_t currentBuffer) {
 
 	vkInfo->cmd.endRenderPass();
 
-	//17.6 Begin render pass
+	//Begin render pass
 	vk::RenderPassBeginInfo renderPassBeginInfo;
 	vk::ClearValue clearValue[2] = {
 		vk::ClearColorValue(std::array<float, 4>({0.0f, 0.0f, 0.0f, 0.0f})),
@@ -971,6 +1062,23 @@ void Scene::DrawObject(uint32_t currentBuffer) {
 		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["skybox"], 0, 1, &skybox.descSet, 0, 0);
 		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["skybox"], 1, 1, &scenePassDesc, 0, 0);
 		vkInfo->cmd.drawIndexed(skybox.indexCount, 1, skybox.startIndexLocation, skybox.baseVertexLocation, 1);
+	}
+
+	//绘制粒子系统
+	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
+	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 3, 1, &drawShadowDesc, 0, 0);
+
+	for (auto& particleSystem : particleSystems) {
+		if (particleSystem.subParticle) {
+			vkInfo->cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["smoke"]);
+			vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &particleSystem.subParticle->descSet, 0, 0);
+			vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &particleSystem.subParticle->material->descSet, 0, 0);
+			particleSystem.DrawSubParticles(&vkInfo->cmd);
+		}
+		vkInfo->cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["flame"]);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &particleSystem.particle->descSet, 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &particleSystem.particle->material->descSet, 0, 0);
+		particleSystem.DrawParticles(&vkInfo->cmd);
 	}
 
 	vkInfo->cmd.endRenderPass();
