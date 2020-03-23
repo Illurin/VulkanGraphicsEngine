@@ -5,11 +5,11 @@
 
 ## 重构后的代码框架
 
-已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构
+已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子
 
-待完成：SkinnedMeshRenderer，ParticleSystem，PostProcessing的封装，以及和GameObject对象的关联
+待完成：SkinnedMeshRenderer，PostProcessing的封装
 
-待改善：Pipeline的管理，VkApp的结构
+待改善：Pipeline的管理，VkApp的结构，丰富粒子的种类
 
 ## Scene类的正确打开方式
 初始化：
