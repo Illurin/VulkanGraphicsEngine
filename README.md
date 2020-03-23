@@ -106,7 +106,7 @@
 ```
 scene.SetShadowMap(width, height, lightDirection, radius);
 ```
-## 简单的基于CPU的粒子系统
+## 基于CPU的简易粒子系统
 ```
 /*创建粒子效果*/
 	//创建粒子的材质(粒子不参与光照所以不需要指定光照参数)
