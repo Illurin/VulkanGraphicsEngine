@@ -5,7 +5,7 @@
 
 ## 重构后的代码框架
 
-已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子
+已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子，简易的Bloom屏幕特效
 
 待完成：SkinnedMeshRenderer，PostProcessing的封装
 
