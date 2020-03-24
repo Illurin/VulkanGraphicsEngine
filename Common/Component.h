@@ -2,6 +2,11 @@
 #include "vkUtil.h"
 #include "Texture.h"
 
+enum class SamplerType : int {
+	repeat = 0,
+	border
+};
+
 struct Transform {
 	glm::vec3 position = glm::vec3(0.0f);
 	glm::vec3 scale = glm::vec3(1.0f);
@@ -12,6 +17,7 @@ struct Transform {
 struct Material {
 	std::string name;
 
+	SamplerType samplerType = SamplerType::repeat;
 	uint32_t matCBIndex = 0;
 	Texture* diffuse;
 

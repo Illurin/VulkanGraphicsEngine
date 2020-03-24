@@ -101,6 +101,10 @@ void Scene::SetSkybox(Texture image, float radius, uint32_t subdivision) {
 	skybox.radius = radius;
 }
 
+void Scene::SetBloomPostProcessing(PostProcessingProfile::Bloom& profile) {
+	bloom = std::make_unique<PostProcessing::Bloom>(profile);
+}
+
 void Scene::CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld) {
 	if (gameObject->dirtyFlag) {
 		glm::mat4x4 LR = glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
@@ -213,7 +217,7 @@ void Scene::SetupVertexBuffer() {
 void Scene::SetupDescriptors() {
 	//初始化FrameBuffer
 	frameResources = std::make_unique<FrameResource>(&vkInfo->device, vkInfo->gpu.getMemoryProperties(), 2, gameObjects.size(), materials.size(), 0);
-
+	
 	//创建通用的采样器
 	vk::Sampler repeatSampler;
 	vk::Sampler borderSampler;
@@ -389,16 +393,18 @@ void Scene::SetupDescriptors() {
 	uint32_t descCount = objCount + matCount + passCount + skinnedModelInst.size() + 1;
 
 	//创建描述符池
+	uint32_t postprocessingDescCount = bloom ? bloom->GetRequiredDescCount() : 0;
+
 	vk::DescriptorPoolSize typeCount[3];
 	typeCount[0].setType(vk::DescriptorType::eUniformBuffer);
 	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0));
 	typeCount[1].setType(vk::DescriptorType::eSampledImage);
-	typeCount[1].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0));
+	typeCount[1].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 	typeCount[2].setType(vk::DescriptorType::eSampler);
-	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0));
+	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 
 	auto descriptorPoolInfo = vk::DescriptorPoolCreateInfo()
-		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0))
+		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount)
 		.setPoolSizeCount(3)
 		.setPPoolSizes(typeCount);
 	vkInfo->device.createDescriptorPool(&descriptorPoolInfo, 0, &vkInfo->descPool);
@@ -487,10 +493,13 @@ void Scene::SetupDescriptors() {
 		auto descriptorMatCBInfo = vk::DescriptorBufferInfo()
 			.setBuffer(frameResources->matCB[matCBIndex]->GetBuffer())
 			.setOffset(0)
-			.setRange(sizeof(ObjectConstants));
+			.setRange(sizeof(MaterialConstants));
 
-		auto descriptorSamplerInfo = vk::DescriptorImageInfo()
-			.setSampler(repeatSampler);
+		vk::DescriptorImageInfo descriptorSamplerInfo;
+		if (material.second.samplerType == SamplerType::repeat)
+			descriptorSamplerInfo.setSampler(repeatSampler);
+		else if (material.second.samplerType == SamplerType::border)
+			descriptorSamplerInfo.setSampler(borderSampler);
 
 		auto descriptorDiffuseInfo = vk::DescriptorImageInfo()
 			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
@@ -600,13 +609,16 @@ void Scene::SetupDescriptors() {
 		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
 	}
 
+	//初始化后处理
+	if (bloom) bloom->Init(vkInfo, vkInfo->scene.imageView);
+
 	//更新FinalPass的描述符
 	{
 		auto descriptorSamplerInfo = vk::DescriptorImageInfo()
 			.setSampler(repeatSampler);
-
+		
 		auto descriptorImageInfo = vk::DescriptorImageInfo()
-			.setImageView(vkInfo->scene.imageView)
+			.setImageView((bloom) ? (bloom->GetImageView()) : (vkInfo->scene.imageView))
 			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
 		vk::WriteDescriptorSet descSetWrites[2];
@@ -712,7 +724,7 @@ void Scene::PreparePipeline() {
 		.setVertexAttributeDescriptionCount(3)
 		.setPVertexAttributeDescriptions(vkInfo->vertex.attrib.data());
 
-	//Input assembly state5
+	//Input assembly state
 	auto iaInfo = vk::PipelineInputAssemblyStateCreateInfo()
 		.setTopology(vk::PrimitiveTopology::eTriangleList)
 		.setPrimitiveRestartEnable(VK_FALSE);
@@ -1083,15 +1095,30 @@ void Scene::DrawObject(uint32_t currentBuffer) {
 
 	vkInfo->cmd.endRenderPass();
 
+	if (bloom) {
+		bloom->ExtractionBrightness(&vkInfo->cmd);
+		bloom->BlurH(&vkInfo->cmd);
+		bloom->BlurV(&vkInfo->cmd);
+	}
+
 	renderPassBeginInfo.setClearValueCount(1);
 	renderPassBeginInfo.setPClearValues(clearValue);
 	renderPassBeginInfo.setFramebuffer(vkInfo->finalFramebuffers[currentBuffer]);
 	renderPassBeginInfo.setRenderPass(vkInfo->finalPass);
 	vkInfo->cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
-
 	vkInfo->cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["final"]);
-	vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &vkInfo->finalPassDescSets[0], 0, 0);
-	vkInfo->cmd.draw(4, 1, 0, 0);
 
+	//进行后处理
+	if (bloom) {
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &bloom->GetSourceDescriptor(), 0, 0);
+		vkInfo->cmd.draw(4, 1, 0, 0);
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &vkInfo->finalPassDescSets[0], 0, 0);
+		vkInfo->cmd.draw(4, 1, 0, 0);
+	}
+	else {
+		vkInfo->cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &vkInfo->finalPassDescSets[0], 0, 0);
+		vkInfo->cmd.draw(4, 1, 0, 0);
+	}
+	
 	vkInfo->cmd.endRenderPass();
 }

@@ -181,6 +181,17 @@ void PostProcessing::Bloom::PreparePipelines() {
 	//±àÒë×ÅÉ«Æ÷
 	std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderInfo(2);
 
+	vk::SpecializationMapEntry bloomPSSME;
+	bloomPSSME.setConstantID(0);
+	bloomPSSME.setOffset(0);
+	bloomPSSME.setSize(sizeof(float));
+
+	vk::SpecializationInfo bloomPSSI;
+	bloomPSSI.setDataSize(sizeof(PostProcessingProfile::Bloom));
+	bloomPSSI.setPData(&bloomProfile);
+	bloomPSSI.setMapEntryCount(1);
+	bloomPSSI.setPMapEntries(&bloomPSSME);
+	
 	pipelineShaderInfo[0] = vk::PipelineShaderStageCreateInfo()
 		.setPName("main")
 		.setModule(vsModule)
@@ -189,7 +200,8 @@ void PostProcessing::Bloom::PreparePipelines() {
 	pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
 		.setPName("main")
 		.setModule(psModule)
-		.setStage(vk::ShaderStageFlagBits::eFragment);
+		.setStage(vk::ShaderStageFlagBits::eFragment)
+		.setPSpecializationInfo(&bloomPSSI);
 
 	//16.1 Dynamic state
 	auto dynamicInfo = vk::PipelineDynamicStateCreateInfo();
@@ -291,17 +303,33 @@ void PostProcessing::Bloom::PreparePipelines() {
 
 	vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &pipelines["brightness"]);
 
+	std::array<vk::SpecializationMapEntry, 2> blurSME;
+	blurSME[0].setConstantID(0);
+	blurSME[0].setOffset(sizeof(float));
+	blurSME[0].setSize(sizeof(float));
+	blurSME[1].setConstantID(1);
+	blurSME[1].setOffset(2 * sizeof(float));
+	blurSME[1].setSize(sizeof(int));
+
+	vk::SpecializationInfo blurSI;
+	blurSI.setDataSize(sizeof(PostProcessingProfile::Bloom));
+	blurSI.setPData(&bloomProfile);
+	blurSI.setMapEntryCount(blurSME.size());
+	blurSI.setPMapEntries(blurSME.data());
+
 	pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
 		.setPName("main")
 		.setModule(blurH)
-		.setStage(vk::ShaderStageFlagBits::eFragment);
+		.setStage(vk::ShaderStageFlagBits::eFragment)
+		.setPSpecializationInfo(&blurSI);
 
 	vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &pipelines["blurH"]);
 
 	pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
 		.setPName("main")
 		.setModule(blurV)
-		.setStage(vk::ShaderStageFlagBits::eFragment);
+		.setStage(vk::ShaderStageFlagBits::eFragment)
+		.setPSpecializationInfo(&blurSI);
 
 	vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &pipelines["blurV"]);
 
@@ -311,8 +339,8 @@ void PostProcessing::Bloom::PreparePipelines() {
 	vkInfo->device.destroyShaderModule(blurV);
 }
 
-void PostProcessing::Bloom::Init(Vulkan& vkInfo, vk::ImageView renderTarget) {
-	this->vkInfo = &vkInfo;
+void PostProcessing::Bloom::Init(Vulkan* vkInfo, vk::ImageView renderTarget) {
+	this->vkInfo = vkInfo;
 	PrepareRenderPass();
 	PrepareFramebuffers();
 	PrepareDescriptorSets(renderTarget);

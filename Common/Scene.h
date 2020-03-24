@@ -7,6 +7,7 @@
 #include "ShadowMap.h"
 #include "Camera.h"
 #include "ParticleSystem.h"
+#include "PostProcessing.h"
 
 class Scene {
 public:
@@ -31,6 +32,9 @@ public:
 
 	//天空盒设定
 	void SetSkybox(Texture image, float radius, uint32_t subdivision);
+
+	//后处理设定
+	void SetBloomPostProcessing(PostProcessingProfile::Bloom& profile);
 
 	void UpdateObjectConstants();
 	void UpdatePassConstants();
@@ -98,4 +102,7 @@ private:
 
 		vk::DescriptorSet descSet;
 	}skybox;
+
+	//后处理
+	std::unique_ptr<PostProcessing::Bloom> bloom;
 };

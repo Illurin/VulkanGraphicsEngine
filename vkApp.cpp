@@ -571,6 +571,7 @@ void VkApp::Start() {
 
 		Material material;
 		material.name = meshNames[i];
+		material.samplerType = SamplerType::border;
 		material.diffuse = modelTextures[i].get();
 		material.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		material.fresnelR0 = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -657,6 +658,13 @@ void VkApp::Start() {
 	subParticle.size = 2.0f;
 	subParticle.used = true;
 	scene.AddParticleSystem(scene.GetGameObject("flame"), scene.GetGameObject("smoke"), property, emitter, particleTexture, subParticle);
+
+	//设定后处理
+	PostProcessingProfile::Bloom bloomProfile;
+	bloomProfile.criticalValue = 0.5f;
+	bloomProfile.blurOffset = 0.003f;
+	bloomProfile.blurRadius = 5;
+	scene.SetBloomPostProcessing(bloomProfile);
 
 	scene.SetupVertexBuffer();
 	scene.SetupDescriptors();

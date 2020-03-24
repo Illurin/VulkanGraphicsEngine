@@ -1,11 +1,23 @@
 #pragma once
 #include "vkUtil.h"
 
+class PostProcessingProfile {
+public:
+	struct Bloom {
+		float criticalValue = 0.5f;
+		float blurOffset = 0.003f;
+		int blurRadius = 10;
+	};
+};
+
 namespace PostProcessing {
 
 	class Bloom {
 	public:
-		void Init(Vulkan& vkInfo, vk::ImageView renderTarget);
+		Bloom(PostProcessingProfile::Bloom& profile) {
+			bloomProfile = profile;
+		}
+		void Init(Vulkan* vkInfo, vk::ImageView renderTarget);
 		//提取亮度
 		void ExtractionBrightness(vk::CommandBuffer* cmd);
 		//横向模糊
@@ -28,6 +40,8 @@ namespace PostProcessing {
 	private:
 		//对外部Vulkan信息的引用
 		Vulkan* vkInfo;
+
+		PostProcessingProfile::Bloom bloomProfile;
 
 		//两个渲染目标对应的Image，ImageView以及Framebuffer
 		vk::Image renderTarget0;
