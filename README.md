@@ -1,15 +1,15 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-![效果图](https://github.com/IllusionRing/VulkanGraphicsEngine/blob/engine/%E6%BC%94%E7%A4%BA%E5%9B%BE%E7%89%87.png)
+![效果图](Information/演示图片.png)
 
 ## 重构后的代码框架
 
-已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构
+已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子
 
-待完成：SkinnedMeshRenderer，ParticleSystem，PostProcessing的封装，以及和GameObject对象的关联
+待完成：SkinnedMeshRenderer，PostProcessing的封装
 
-待改善：Pipeline的管理，VkApp的结构
+待改善：Pipeline的管理，VkApp的结构，丰富粒子的种类
 
 ## Scene类的正确打开方式
 初始化：
@@ -106,6 +106,65 @@
 ```
 scene.SetShadowMap(width, height, lightDirection, radius);
 ```
+## 基于CPU的简易粒子系统
+```
+/*创建粒子效果*/
+	//创建粒子的材质(粒子不参与光照所以不需要指定光照参数)
+	Material flame_mat;
+	flame_mat.name = "flame";
+	flame_mat.diffuse = textures[2].get();
+	scene.AddMaterial(flame_mat);
+
+	Material smoke_mat;
+	smoke_mat.name = "smoke";
+	smoke_mat.diffuse = textures[3].get();
+	scene.AddMaterial(smoke_mat);
+
+	//创建两个GameObject分别代表粒子和子粒子
+	GameObject flameObject;
+	flameObject.name = "flame";
+	flameObject.material = scene.GetMaterial("flame");
+	flameObject.transform.position = glm::vec3(1.0f, 1.0f, 0.0f);
+	scene.AddGameObject(flameObject, 0);
+
+	GameObject smokeObject;
+	smokeObject.name = "smoke";
+	smokeObject.material = scene.GetMaterial("smoke");
+	smokeObject.transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
+	scene.AddGameObject(smokeObject, scene.GetGameObject("flame")); //设为flame的子物件
+
+	//初始化火焰的粒子系统
+	ParticleSystem::Property property;
+	property.maxSize = 5.0f;
+	property.minSize = 4.0f;
+	property.minLastTime = 0.5f;
+	property.maxLastTime = 2.0f;
+	property.maxVelocity = glm::vec3(0.0f, 1.0f, 0.0f);
+	property.minVelocity = glm::vec3(0.0f, 1.0f, 0.0f);
+	property.minAlpha = 0.9f;
+	property.maxAlpha = 1.0f;
+	property.colorFadeSpeed = 0.5f;
+	property.sizeFadeSpeed = 1.0f;
+	property.color = glm::vec3(0.0f, 0.0f, 0.0f);
+	ParticleSystem::Emitter emitter;
+	emitter.maxParticleNum = 10;
+	emitter.position = glm::vec3(0.0f, 0.0f, 0.0f);
+	emitter.radius = 0.3f;
+	ParticleSystem::Texture particleTexture;
+	particleTexture.splitX = 7;
+	particleTexture.splitY = 7;
+	particleTexture.texCount = 7 * 7;
+	ParticleSystem::SubParticle subParticle;
+	subParticle.color = glm::vec3(0.0f, 0.0f, 0.0f);
+	subParticle.lastTime = 2.0f;
+	subParticle.texture.splitX = 6;
+	subParticle.texture.splitY = 6;
+	subParticle.texture.texCount = 6 * 6;
+	subParticle.size = 2.0f;
+	subParticle.used = true;
+	scene.AddParticleSystem(scene.GetGameObject("flame"), scene.GetGameObject("smoke"), property, emitter, particleTexture, subParticle);
+```
+
 ## 与Scene封装无关的辅助方法
 
 ### 加载图片类
