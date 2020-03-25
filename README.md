@@ -1,11 +1,11 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-![效果图](Information/演示图片.png)
+![效果图](Information/演示图片2.png)
 
 ## 重构后的代码框架
 
-已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子
+已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子，简易的Bloom屏幕特效
 
 待完成：SkinnedMeshRenderer，PostProcessing的封装
 
@@ -164,6 +164,17 @@ scene.SetShadowMap(width, height, lightDirection, radius);
 	subParticle.used = true;
 	scene.AddParticleSystem(scene.GetGameObject("flame"), scene.GetGameObject("smoke"), property, emitter, particleTexture, subParticle);
 ```
+
+## 简易的Bloom特效
+```
+//设定
+PostProcessingProfile::Bloom bloomProfile;
+bloomProfile.criticalValue = 0.5f;    //亮度阈值
+bloomProfile.blurOffset = 0.003f;     //高斯模糊偏移
+bloomProfile.blurRadius = 5;          //高斯模糊半径
+scene.SetBloomPostProcessing(bloomProfile);
+```
+此步骤应放在SetupDescriptors之前
 
 ## 与Scene封装无关的辅助方法
 
