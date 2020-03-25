@@ -15,8 +15,9 @@ private:
 	Vulkan vkInfo;
 	Scene scene;
 
-	//Global value
-	Camera mainCamera;
+	bool recordCommand = true;
 
+	//Global variable
+	Camera mainCamera;
 	float deltaTime = 0.01f;
 };

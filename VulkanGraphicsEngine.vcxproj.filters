@@ -88,6 +88,9 @@
     <ClInclude Include="Common\Component.h">
       <Filter>引擎框架</Filter>
     </ClInclude>
+    <ClInclude Include="Common\Thread.h">
+      <Filter>引擎框架</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VulkanGraphicsEngine.cpp">
@@ -186,9 +189,6 @@
       <Filter>着色器\阴影</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\SkinnedVS.hlsl">
-      <Filter>着色器\蒙皮动画</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\SkinnedPS.hlsl">
       <Filter>着色器\蒙皮动画</Filter>
     </FxCompile>
   </ItemGroup>

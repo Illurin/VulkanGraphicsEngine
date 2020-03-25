@@ -15,7 +15,9 @@ public:
 	void AddMaterial(Material& material);
 
 	void AddMeshRenderer(GameObject* gameObject, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+	void AddSkinnedMeshRenderer(GameObject* gameObject, std::vector<SkinnedVertex>& vertices, std::vector<uint32_t>& indices);
 	void AddParticleSystem(GameObject* particle, GameObject* subParticle, ParticleSystem::Property& property, ParticleSystem::Emitter& emitter, ParticleSystem::Texture& texture, ParticleSystem::SubParticle& subParticleProperty);
+	void AddSkinnedModelInstance(SkinnedModelInstance& skinnedModelInst);
 
 	//Get方法
 	GameObject* GetGameObject(std::string name);
@@ -39,13 +41,14 @@ public:
 	void UpdateObjectConstants();
 	void UpdatePassConstants();
 	void UpdateMaterialConstants();
+	void UpdateSkinnedModel(float deltaTime);
 	void UpdateCPUParticleSystem(float deltaTime);
 
 	void SetupVertexBuffer();
 	void SetupDescriptors();
 	void PreparePipeline();
 
-	void DrawObject(uint32_t currentBuffer);
+	void DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer);
 
 	Vulkan* vkInfo;
 
@@ -73,8 +76,8 @@ private:
 	//组件池
 	std::vector<MeshRenderer> meshRenderers;
 	std::vector<SkinnedMeshRenderer> skinnedMeshRenderers;
-	std::vector<SkinnedModelInstance> skinnedModelInst;
 	std::vector<ParticleSystem> particleSystems;
+	std::vector<SkinnedModelInstance> skinnedModelInst;
 
 	//场景属性
 	//灯光

@@ -58,6 +58,7 @@ struct MeshRenderer {
 
 struct SkinnedMeshRenderer {
 	GameObject* gameObject;
+	uint32_t skinnedModelIndex;
 
 	int baseVertexLocation;
 	int startIndexLocation;

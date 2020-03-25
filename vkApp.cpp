@@ -44,7 +44,7 @@ void VkApp::Initialize(uint32_t windowWidth, uint32_t windowHeight, HWND hWnd, H
 
 	/*Set validation layer*/
 #ifdef NDEBUG
-	const bool enableValidationLayers = false;5
+	const bool enableValidationLayers = false;
 #else
 	const bool enableValidationLayers = true;
 #endif
@@ -160,25 +160,6 @@ void VkApp::Initialize(uint32_t windowWidth, uint32_t windowHeight, HWND hWnd, H
 		MessageBox(0, L"Create device failed!!!", 0, 0);
 	}
 
-	/*Create command buffers*/
-
-	//Create command pool
-	vk::CommandPoolCreateInfo commandPoolInfo;
-	commandPoolInfo.setQueueFamilyIndex(vkInfo.graphicsQueueFamilyIndex);
-	commandPoolInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-	if (vkInfo.device.createCommandPool(&commandPoolInfo, 0, &vkInfo.cmdPool) != vk::Result::eSuccess) {
-		MessageBox(0, L"Create command pool failed!!!", 0, 0);
-	}
-
-	//Allocate Command buffer from the pool
-	vk::CommandBufferAllocateInfo cmdBufferAlloc;
-	cmdBufferAlloc.setCommandPool(vkInfo.cmdPool);
-	cmdBufferAlloc.setLevel(vk::CommandBufferLevel::ePrimary);
-	cmdBufferAlloc.setCommandBufferCount(1);
-	if (vkInfo.device.allocateCommandBuffers(&cmdBufferAlloc, &vkInfo.cmd) != vk::Result::eSuccess) {
-		MessageBox(0, L"Allocate command buffer failed!!!", 0, 0);
-	}
-
 	/*Create a swap chain*/
 
 	//Create a surface fo win32
@@ -277,6 +258,26 @@ void VkApp::Initialize(uint32_t windowWidth, uint32_t windowHeight, HWND hWnd, H
 
 	//Get queue
 	vkInfo.device.getQueue(vkInfo.graphicsQueueFamilyIndex, 0, &vkInfo.queue);
+
+	/*Create command buffers*/
+
+	//Create command pool
+	vk::CommandPoolCreateInfo commandPoolInfo;
+	commandPoolInfo.setQueueFamilyIndex(vkInfo.graphicsQueueFamilyIndex);
+	commandPoolInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+	if (vkInfo.device.createCommandPool(&commandPoolInfo, 0, &vkInfo.cmdPool) != vk::Result::eSuccess) {
+		MessageBox(0, L"Create command pool failed!!!", 0, 0);
+	}
+
+	//Allocate Command buffer from the pool
+	vkInfo.cmd.resize(vkInfo.frameCount);
+	vk::CommandBufferAllocateInfo cmdBufferAlloc;
+	cmdBufferAlloc.setCommandPool(vkInfo.cmdPool);
+	cmdBufferAlloc.setLevel(vk::CommandBufferLevel::ePrimary);
+	cmdBufferAlloc.setCommandBufferCount(vkInfo.frameCount);
+	if (vkInfo.device.allocateCommandBuffers(&cmdBufferAlloc, vkInfo.cmd.data()) != vk::Result::eSuccess) {
+		MessageBox(0, L"Allocate command buffer failed!!!", 0, 0);
+	}
 
 	/*Prepare semaphore and fence*/
 	auto semaphoreInfo = vk::SemaphoreCreateInfo();
@@ -553,15 +554,16 @@ void VkApp::Start() {
 	GeometryGenerator::MeshData sphere_mesh = geoGen.CreateGeosphere(0.5f, 8);
 	scene.AddMeshRenderer(scene.GetGameObject("sphere"), sphere_mesh.vertices, sphere_mesh.indices);
 
-	/*使用Model类加载没有蒙皮动画的模型*/
-	Model model("Assets\\model.fbx");
+	/*使用SkinnedModel类加载带有蒙皮动画的模型*/
+	SkinnedModel model("Assets\\skinnedModel.fbx");
+
 	//使用图片的文件名称作为GameObject的名称
 	std::vector<std::string> meshNames;
 
 	std::vector<std::unique_ptr<Texture>> modelTextures;
 	for (size_t i = 0; i < model.texturePath.size(); i++) {
 		auto texture = std::make_unique<Texture>();
-		meshNames.push_back(model.texturePath[i].substr(model.texturePath[i].find_last_of('|') + 1, model.texturePath[i].length() - 1));
+		meshNames.push_back(model.texturePath[i].substr(model.texturePath[i].find_last_of('\\') + 1, model.texturePath[i].length() - 1));
 		
 		//使用STB库加载模型下的所有贴图并为其创建材质
 		LoadPixelWithSTB(model.texturePath[i].c_str(), 32, *texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
@@ -582,19 +584,41 @@ void VkApp::Start() {
 
 	//创建一个GameObject作为模型的父物件
 	GameObject modelObject;
-	modelObject.name = "morisaModel";
+	modelObject.name = "marisaModel";
 	modelObject.transform.position = glm::vec3(-2.0f, -1.0f, 0.0f);
 	modelObject.transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
-	modelObject.transform.localEulerAngle = glm::vec3(-glm::pi<float>() * 0.5f, 0.0f, 0.0f);
+	//modelObject.transform.localEulerAngle = glm::vec3(-glm::pi<float>() * 0.5f, 0.0f, 0.0f);
 	scene.AddGameObject(modelObject, 0);
+
+	//创建骨骼动画实例并添加到场景（放在添加SkinnedMeshRenderer之前）
+	std::vector<int> boneHierarchy;
+	std::vector<glm::mat4x4> boneOffsets;
+	std::vector<glm::mat4x4> nodeOffsets;
+	std::unordered_map<std::string, AnimationClip> animations;
+
+	model.GetAnimations(animations);
+	model.GetBoneHierarchy(boneHierarchy);
+	model.GetBoneOffsets(boneOffsets);
+	model.GetNodeOffsets(nodeOffsets);
+
+	for (auto& animation : animations) {
+		for (uint32_t i = 0; i < animation.second.boneAnimations.size(); i++)
+			animation.second.boneAnimations[i].defaultTransform = nodeOffsets[i];
+	}
+
+	SkinnedModelInstance skinnedModelInst;
+	skinnedModelInst.clipName = "default";
+	skinnedModelInst.skinnedInfo.Set(boneHierarchy, boneOffsets, animations);
+	skinnedModelInst.finalTransforms.resize(boneOffsets.size());
+	scene.AddSkinnedModelInstance(skinnedModelInst);
 
 	//加载模型的所有的Mesh并添加到modelObject下
 	for (size_t i = 0; i < model.renderInfo.size(); i++) {
 		GameObject childObject;
 		childObject.name = meshNames[i];
 		childObject.material = scene.GetMaterial(meshNames[i]);
-		scene.AddGameObject(childObject, scene.GetGameObject("morisaModel"));
-		scene.AddMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
+		scene.AddGameObject(childObject, scene.GetGameObject("marisaModel"));
+		scene.AddSkinnedMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
 	}
 
 	/*初始化阴影贴图*/
@@ -673,28 +697,34 @@ void VkApp::Start() {
 
 void VkApp::Loop() {
 	Update();
+
 	scene.UpdateObjectConstants();
 	scene.UpdatePassConstants();
 	scene.UpdateMaterialConstants();
+	scene.UpdateSkinnedModel(deltaTime);
 	scene.UpdateCPUParticleSystem(deltaTime);
 
-	//Begin record commands
-	auto cmdBeginInfo = vk::CommandBufferBeginInfo()
-		.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse);
-	if (vkInfo.cmd.begin(&cmdBeginInfo) != vk::Result::eSuccess) {
-		MessageBox(0, L"Begin record command failed!!!", 0, 0);
-	}
-
 	//Wait for swap chain
-	uint32_t currentBuffer = 0;
+	uint32_t currentBuffer;
 	if (vkInfo.device.acquireNextImageKHR(vkInfo.swapchain, UINT64_MAX, vkInfo.imageAcquiredSemaphore, vk::Fence(), &currentBuffer) != vk::Result::eSuccess) {
 		MessageBox(0, L"Acquire next image failed!!!", 0, 0);
 	}
-	scene.DrawObject(currentBuffer);
+	
+	//Record commands
+	if (recordCommand) {
+		auto cmdBeginInfo = vk::CommandBufferBeginInfo()
+			.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse);
 
-	//17.10 Submit the command list
-	vkInfo.cmd.end();
+		for (uint32_t i = 0; i < vkInfo.frameCount; i++) {
+			vkInfo.cmd[i].begin(&cmdBeginInfo);
+			scene.DrawObject(vkInfo.cmd[i], i);
+			vkInfo.cmd[i].end();
+		}
+		
+		recordCommand = false;
+	}
 
+	//Submit the command list
 	vk::PipelineStageFlags dstStageMask[] = {
 		vk::PipelineStageFlagBits::eBottomOfPipe
 	};
@@ -703,19 +733,19 @@ void VkApp::Loop() {
 
 	auto submitInfo = vk::SubmitInfo()
 		.setCommandBufferCount(1)
-		.setPCommandBuffers(&vkInfo.cmd)
+		.setPCommandBuffers(&vkInfo.cmd[currentBuffer])
 		.setWaitSemaphoreCount(1)
 		.setPWaitSemaphores(&vkInfo.imageAcquiredSemaphore)
 		.setPWaitDstStageMask(dstStageMask);
 	vkInfo.queue.submit(1, &submitInfo, vkInfo.fence);
 
-	//17.11 Wait for GPU to be finished
+	//Wait for GPU to be finished
 	vk::Result waitingRes;
 	do
 		waitingRes = vkInfo.device.waitForFences(1, &vkInfo.fence, VK_TRUE, UINT64_MAX);
 	while (waitingRes == vk::Result::eTimeout);
 
-	//17.12 Present
+	//Present
 	auto presentInfo = vk::PresentInfoKHR()
 		.setPImageIndices(&currentBuffer)
 		.setSwapchainCount(1)

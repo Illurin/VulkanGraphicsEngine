@@ -54,19 +54,21 @@ private:
 };
 
 struct SkinnedModelInstance {
-	SkinnedData* skinnedInfo = nullptr;
+	SkinnedData skinnedInfo;
 	std::vector<glm::mat4x4> finalTransforms;
 	std::string clipName;
 	float timePos = 0.0f;
 
+	uint32_t skinnedCBIndex;
+	vk::DescriptorSet descSet;
+
 	void UpdateSkinnedAnimation(float deltaTime) {
 		timePos += deltaTime;
-		skinnedInfo;
 
 		//Loop
-		if (timePos > skinnedInfo->GetClipEndTime(clipName))
+		if (timePos > skinnedInfo.GetClipEndTime(clipName))
 			timePos = 0.0f;
 
-		skinnedInfo->GetFinalTransform(clipName, timePos, finalTransforms);
+		skinnedInfo.GetFinalTransform(clipName, timePos, finalTransforms);
 	}
 };

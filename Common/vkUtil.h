@@ -156,7 +156,7 @@ struct Vulkan {
 	vk::SurfaceKHR surface;
 	vk::SwapchainKHR swapchain;
 	vk::CommandPool cmdPool;
-	vk::CommandBuffer cmd;
+	std::vector<vk::CommandBuffer> cmd;
 
 	vk::Semaphore imageAcquiredSemaphore;
 	vk::Fence fence;
