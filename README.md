@@ -5,26 +5,26 @@
 
 ## 重构后的代码框架
 
-已完成：MeshRenderer和GameObject的封装，Skybox的开启，树状的GameObject结构，简单的CPU粒子，简易的Bloom屏幕特效
+图片库：WIC和STBImage，封装了基于WIC的立方体图
 
-待完成：SkinnedMeshRenderer，PostProcessing的封装
+模型库：Assimp，可稳定加载的模型格式有obj（不带动画），fbx（带动画）
 
-待改善：Pipeline的管理，VkApp的结构，丰富粒子的种类
+渲染效果：基于CPU的简易粒子效果和Bloom屏幕特效，PCF阴影
 
 ## Scene类的正确打开方式
 初始化：
 ```
 //初始化场景系统
-	scene.vkInfo = &vkInfo;
+scene.vkInfo = &vkInfo;
 
-	mainCamera = Camera((float)vkInfo.width / (float)vkInfo.height);
-	mainCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+mainCamera = Camera((float)vkInfo.width / (float)vkInfo.height);
+mainCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	scene.SetAmbientLight(glm::vec4(0.3f, 0.3f, 0.3f, 0.3f));
-	scene.SetMainCamera(&mainCamera);
+scene.SetAmbientLight(glm::vec4(0.3f, 0.3f, 0.3f, 0.3f));
+scene.SetMainCamera(&mainCamera);
 
-	//创建一个点光
-	scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
+//创建一个点光
+scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
 ```
 创建物体对象：
 ```
@@ -106,6 +106,77 @@
 ```
 scene.SetShadowMap(width, height, lightDirection, radius);
 ```
+
+## 骨骼蒙皮动画
+```
+/*使用SkinnedModel类加载带有蒙皮动画的模型*/
+	SkinnedModel model("Assets\\skinnedModel.fbx");
+
+	//使用图片的文件名称作为GameObject的名称
+	std::vector<std::string> meshNames;
+
+	std::vector<std::unique_ptr<Texture>> modelTextures;
+	for (size_t i = 0; i < model.texturePath.size(); i++) {
+		auto texture = std::make_unique<Texture>();
+		meshNames.push_back(model.texturePath[i].substr(model.texturePath[i].find_last_of('\\') + 1, model.texturePath[i].length() - 1));
+		
+		//使用STB库加载模型下的所有贴图并为其创建材质
+		LoadPixelWithSTB(model.texturePath[i].c_str(), 32, *texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
+		texture->SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
+		texture->CleanUploader(&vkInfo.device);
+		modelTextures.push_back(std::move(texture));
+
+		Material material;
+		material.name = meshNames[i];
+		material.samplerType = SamplerType::border;
+		material.diffuse = modelTextures[i].get();
+		material.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		material.fresnelR0 = glm::vec3(0.0f, 0.0f, 0.0f);
+		material.matTransform = glm::mat4(1.0f);
+		material.roughness = 0.8f;
+		scene.AddMaterial(material);
+	}
+
+	//创建一个GameObject作为模型的父物件
+	GameObject modelObject;
+	modelObject.name = "marisaModel";
+	modelObject.transform.position = glm::vec3(-2.0f, -1.0f, 0.0f);
+	modelObject.transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
+	//modelObject.transform.localEulerAngle = glm::vec3(-glm::pi<float>() * 0.5f, 0.0f, 0.0f);
+	scene.AddGameObject(modelObject, 0);
+
+	//创建骨骼动画实例并添加到场景（放在添加SkinnedMeshRenderer之前）
+	std::vector<int> boneHierarchy;
+	std::vector<glm::mat4x4> boneOffsets;
+	std::vector<glm::mat4x4> nodeOffsets;
+	std::unordered_map<std::string, AnimationClip> animations;
+
+	model.GetAnimations(animations);
+	model.GetBoneHierarchy(boneHierarchy);
+	model.GetBoneOffsets(boneOffsets);
+	model.GetNodeOffsets(nodeOffsets);
+
+	for (auto& animation : animations) {
+		for (uint32_t i = 0; i < animation.second.boneAnimations.size(); i++)
+			animation.second.boneAnimations[i].defaultTransform = nodeOffsets[i];
+	}
+
+	SkinnedModelInstance skinnedModelInst;
+	skinnedModelInst.clipName = "default";
+	skinnedModelInst.skinnedInfo.Set(boneHierarchy, boneOffsets, animations);
+	skinnedModelInst.finalTransforms.resize(boneOffsets.size());
+	scene.AddSkinnedModelInstance(skinnedModelInst);
+
+	//加载模型的所有的Mesh并添加到modelObject下
+	for (size_t i = 0; i < model.renderInfo.size(); i++) {
+		GameObject childObject;
+		childObject.name = meshNames[i];
+		childObject.material = scene.GetMaterial(meshNames[i]);
+		scene.AddGameObject(childObject, scene.GetGameObject("marisaModel"));
+		scene.AddSkinnedMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
+	}
+```
+
 ## 基于CPU的简易粒子系统
 ```
 /*创建粒子效果*/
