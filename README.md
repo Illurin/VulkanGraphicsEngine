@@ -1,7 +1,7 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-![效果图](Information/演示图片2.png)
+![效果图](Information/演示图片3.png)
 
 ## 重构后的代码框架
 
@@ -10,6 +10,8 @@
 模型库：Assimp，可稳定加载的模型格式有obj（不带动画），fbx（带动画）
 
 渲染效果：基于CPU的简易粒子效果和Bloom屏幕特效，PCF阴影
+
+GUI: 接入了dear-ImGui接口，通过修改OnGUI方法来更改GUI的显示（将recordCommand设为true来提醒VkApp进行重绘）
 
 ## Scene类的正确打开方式
 初始化：
