@@ -122,6 +122,31 @@ void Scene::SetBloomPostProcessing(PostProcessingProfile::Bloom& profile) {
 	bloom = std::make_unique<PostProcessing::Bloom>(profile);
 }
 
+void Scene::PrepareImGUI() {
+	imgui = new ImGUI(vkInfo);
+	imgui->Init(vkInfo->width, vkInfo->height);
+	imgui->InitResource();
+}
+
+void Scene::UpdateImGUI(float deltaTime) {
+	if (imgui) {
+		ImGuiIO& io = ImGui::GetIO();
+		io.DisplaySize = ImVec2((float)vkInfo->width, (float)vkInfo->height);
+		io.DeltaTime = deltaTime;
+		
+		long cursorPosX;
+		long cursorPosY;
+
+		vkInfo->input.GetCursorPosition(cursorPosX, cursorPosY);
+
+		io.MousePos = ImVec2((float)cursorPosX, (float)cursorPosY);
+		io.MouseDown[0] = vkInfo->input.GetMouseDown(0);
+		io.MouseDown[1] = vkInfo->input.GetMouseDown(1);
+		
+		imgui->UpdateBuffers();
+	}
+}
+
 void Scene::CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld) {
 	if (gameObject->dirtyFlag) {
 		glm::mat4x4 LR = glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
@@ -1166,6 +1191,9 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &particleSystem.particle->material->descSet, 0, 0);
 		particleSystem.DrawParticles(&cmd);
 	}
+
+	//»æÖÆGUI
+	imgui->DrawFrame(cmd);
 
 	cmd.endRenderPass();
 

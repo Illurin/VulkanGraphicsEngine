@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include "ParticleSystem.h"
 #include "PostProcessing.h"
+#include "ImGUI.h"
 
 class Scene {
 public:
@@ -37,6 +38,10 @@ public:
 
 	//后处理设定
 	void SetBloomPostProcessing(PostProcessingProfile::Bloom& profile);
+
+	//GUI设定
+	void PrepareImGUI();
+	void UpdateImGUI(float deltaTime);
 
 	void UpdateObjectConstants();
 	void UpdatePassConstants();
@@ -105,6 +110,9 @@ private:
 
 		vk::DescriptorSet descSet;
 	}skybox;
+
+	//ImGUI
+	ImGUI* imgui = nullptr;
 
 	//后处理
 	std::unique_ptr<PostProcessing::Bloom> bloom;

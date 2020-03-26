@@ -41,6 +41,9 @@
     <Filter Include="引擎框架">
       <UniqueIdentifier>{275b437d-1ab8-4671-8b7d-302c5ff5ec4e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{d8019a9b-0df8-4a09-9303-0af2864aaca9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\Texture.h">
@@ -91,6 +94,27 @@
     <ClInclude Include="Common\Thread.h">
       <Filter>引擎框架</Filter>
     </ClInclude>
+    <ClInclude Include="Third-Party\Include\imgui\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Third-Party\Include\imgui\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Third-Party\Include\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Third-Party\Include\imgui\imstb_rectpack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Third-Party\Include\imgui\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Third-Party\Include\imgui\imstb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\ImGUI.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VulkanGraphicsEngine.cpp">
@@ -134,6 +158,18 @@
     </ClCompile>
     <ClCompile Include="vkApp.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Third-Party\Include\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Third-Party\Include\imgui\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Third-Party\Include\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Third-Party\Include\imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

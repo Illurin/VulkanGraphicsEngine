@@ -555,7 +555,7 @@ void VkApp::Start() {
 	scene.AddMeshRenderer(scene.GetGameObject("sphere"), sphere_mesh.vertices, sphere_mesh.indices);
 
 	/*使用SkinnedModel类加载带有蒙皮动画的模型*/
-	SkinnedModel model("Assets\\skinnedModel.fbx");
+	Model model("Assets\\model.fbx");
 
 	//使用图片的文件名称作为GameObject的名称
 	std::vector<std::string> meshNames;
@@ -587,30 +587,8 @@ void VkApp::Start() {
 	modelObject.name = "marisaModel";
 	modelObject.transform.position = glm::vec3(-2.0f, -1.0f, 0.0f);
 	modelObject.transform.scale = glm::vec3(0.1f, 0.1f, 0.1f);
-	//modelObject.transform.localEulerAngle = glm::vec3(-glm::pi<float>() * 0.5f, 0.0f, 0.0f);
+	modelObject.transform.localEulerAngle = glm::vec3(-glm::pi<float>() * 0.5f, 0.0f, 0.0f);
 	scene.AddGameObject(modelObject, 0);
-
-	//创建骨骼动画实例并添加到场景（放在添加SkinnedMeshRenderer之前）
-	std::vector<int> boneHierarchy;
-	std::vector<glm::mat4x4> boneOffsets;
-	std::vector<glm::mat4x4> nodeOffsets;
-	std::unordered_map<std::string, AnimationClip> animations;
-
-	model.GetAnimations(animations);
-	model.GetBoneHierarchy(boneHierarchy);
-	model.GetBoneOffsets(boneOffsets);
-	model.GetNodeOffsets(nodeOffsets);
-
-	for (auto& animation : animations) {
-		for (uint32_t i = 0; i < animation.second.boneAnimations.size(); i++)
-			animation.second.boneAnimations[i].defaultTransform = nodeOffsets[i];
-	}
-
-	SkinnedModelInstance skinnedModelInst;
-	skinnedModelInst.clipName = "default";
-	skinnedModelInst.skinnedInfo.Set(boneHierarchy, boneOffsets, animations);
-	skinnedModelInst.finalTransforms.resize(boneOffsets.size());
-	scene.AddSkinnedModelInstance(skinnedModelInst);
 
 	//加载模型的所有的Mesh并添加到modelObject下
 	for (size_t i = 0; i < model.renderInfo.size(); i++) {
@@ -618,7 +596,7 @@ void VkApp::Start() {
 		childObject.name = meshNames[i];
 		childObject.material = scene.GetMaterial(meshNames[i]);
 		scene.AddGameObject(childObject, scene.GetGameObject("marisaModel"));
-		scene.AddSkinnedMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
+		scene.AddMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
 	}
 
 	/*初始化阴影贴图*/
@@ -690,19 +668,46 @@ void VkApp::Start() {
 	bloomProfile.blurRadius = 5;
 	scene.SetBloomPostProcessing(bloomProfile);
 
+	//设定GUI
+	scene.PrepareImGUI();
+
 	scene.SetupVertexBuffer();
 	scene.SetupDescriptors();
 	scene.PreparePipeline();
 }
 
+void VkApp::OnGUI() {
+	ImGui::NewFrame();
+
+	ImGui::SetNextWindowSize(ImVec2(300, 200), 0);
+	ImGui::SetNextWindowPos(ImVec2(10, 10));
+	ImGui::Begin("ImGUI Test");
+
+	if (ImGui::Button("Particle System Switch", ImVec2(200, 30)))
+		particleSystemEnabled = !particleSystemEnabled;
+
+	float value;
+	ImGui::SliderFloat("sliderTest", &value, 0.0f, 10.0f);
+
+	ImGui::End();
+	ImGui::Render();
+
+	if (ImGui::IsAnyWindowHovered() || ImGui::IsAnyItemHovered())
+		recordCommand = true;
+}
+
 void VkApp::Loop() {
 	Update();
+	OnGUI();
 
 	scene.UpdateObjectConstants();
 	scene.UpdatePassConstants();
 	scene.UpdateMaterialConstants();
 	scene.UpdateSkinnedModel(deltaTime);
-	scene.UpdateCPUParticleSystem(deltaTime);
+	scene.UpdateImGUI(deltaTime);
+
+	if (particleSystemEnabled)
+		scene.UpdateCPUParticleSystem(deltaTime);
 
 	//Wait for swap chain
 	uint32_t currentBuffer;

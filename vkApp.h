@@ -9,6 +9,7 @@ public:
 
 private:
 	void Update();
+	void OnGUI();
 	void PrepareScenePass();
 	void PrepareFinalPass();
 
@@ -20,4 +21,6 @@ private:
 	//Global variable
 	Camera mainCamera;
 	float deltaTime = 0.01f;
+
+	bool particleSystemEnabled = true;
 };
