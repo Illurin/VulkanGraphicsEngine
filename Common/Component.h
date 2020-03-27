@@ -7,6 +7,12 @@ enum class SamplerType : int {
 	border
 };
 
+enum class ShaderModel : int {
+	common = 0,
+	normalMap,
+	shaderModelCount
+};
+
 struct Transform {
 	glm::vec3 position = glm::vec3(0.0f);
 	glm::vec3 scale = glm::vec3(1.0f);
@@ -18,8 +24,11 @@ struct Material {
 	std::string name;
 
 	SamplerType samplerType = SamplerType::repeat;
+	ShaderModel shaderModel = ShaderModel::common;
+	
 	uint32_t matCBIndex = 0;
 	Texture* diffuse;
+	Texture* normal;
 
 	glm::mat4x4 matTransform = glm::mat4(1.0f);
 	glm::vec4 diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);

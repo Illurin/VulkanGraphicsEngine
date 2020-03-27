@@ -52,6 +52,7 @@ public:
 	void SetupVertexBuffer();
 	void SetupDescriptors();
 	void PreparePipeline();
+	void PrepareShaderModel();
 
 	void DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer);
 
@@ -78,11 +79,18 @@ private:
 	vk::DescriptorSet shadowPassDesc;
 	vk::DescriptorSet drawShadowDesc;
 
+	//管线
+	std::vector<vk::Pipeline> meshPipeline;
+	std::vector<vk::Pipeline> skinnedMeshPipeline;
+
 	//组件池
 	std::vector<MeshRenderer> meshRenderers;
 	std::vector<SkinnedMeshRenderer> skinnedMeshRenderers;
 	std::vector<ParticleSystem> particleSystems;
 	std::vector<SkinnedModelInstance> skinnedModelInst;
+
+	std::vector<MeshRenderer*> shaderModel[(int)ShaderModel::shaderModelCount];
+	std::vector<SkinnedMeshRenderer*> skinnedShaderModel[(int)ShaderModel::shaderModelCount];
 
 	//场景属性
 	//灯光

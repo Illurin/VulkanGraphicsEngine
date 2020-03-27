@@ -162,6 +162,7 @@ void Scene::CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld)
 	}
 	ObjectConstants objectConstants;
 	objectConstants.worldMatrix = parentToWorld * gameObject->toParent;
+	objectConstants.worldMatrix_trans_inv = glm::transpose(glm::inverse(objectConstants.worldMatrix));
 	frameResources->objCB[gameObject->objCBIndex]->CopyData(&vkInfo->device, 0, 1, &objectConstants);
 	for (auto& child : gameObject->children) {
 		CalcCildTransform(child, objectConstants.worldMatrix);
@@ -209,6 +210,10 @@ void Scene::UpdateSkinnedModel(float deltaTime) {
 		skinnedModel.UpdateSkinnedAnimation(deltaTime);
 		SkinnedConstants skinnedConstants;
 		std::copy(std::begin(skinnedModel.finalTransforms), std::end(skinnedModel.finalTransforms), skinnedConstants.boneTransforms);
+
+		for (uint32_t i = 0; i < skinnedModel.finalTransforms.size(); i++)
+			skinnedConstants.boneTransforms_inv_trans[i] = glm::transpose(glm::inverse(skinnedConstants.boneTransforms[i]));
+
 		frameResources->skinnedCB[skinnedModel.skinnedCBIndex]->CopyData(&vkInfo->device, 0, 1, &skinnedConstants);
 	}
 }
@@ -331,7 +336,7 @@ void Scene::SetupDescriptors() {
 		objCBBinding
 	};
 
-	//第二个管线布局：纹理，材质常量和采样器
+	//第二个管线布局：纹理，法线贴图，材质常量和采样器
 	auto materialCBBinding = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
@@ -350,8 +355,14 @@ void Scene::SetupDescriptors() {
 		.setDescriptorType(vk::DescriptorType::eSampledImage)
 		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
+	auto normalMapBinding = vk::DescriptorSetLayoutBinding()
+		.setBinding(3)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eSampledImage)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
 	vk::DescriptorSetLayoutBinding layoutBindingMaterial[] = {
-		textureBinding, materialCBBinding, samplerBinding
+		textureBinding, materialCBBinding, samplerBinding, normalMapBinding
 	};
 
 	//第三个管线布局：Pass常量
@@ -415,7 +426,7 @@ void Scene::SetupDescriptors() {
 	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_obj, 0, &vkInfo->descSetLayout[0]);
 
 	auto descLayoutInfo_material = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(3)
+		.setBindingCount(4)
 		.setPBindings(layoutBindingMaterial);
 	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_material, 0, &vkInfo->descSetLayout[1]);
 
@@ -452,7 +463,7 @@ void Scene::SetupDescriptors() {
 	typeCount[0].setType(vk::DescriptorType::eUniformBuffer);
 	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0));
 	typeCount[1].setType(vk::DescriptorType::eSampledImage);
-	typeCount[1].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
+	typeCount[1].setDescriptorCount(matCount * 2 + 2 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 	typeCount[2].setType(vk::DescriptorType::eSampler);
 	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 
@@ -567,7 +578,7 @@ void Scene::SetupDescriptors() {
 			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
 			.setImageView(material.second.diffuse->GetImageView(&vkInfo->device));
 
-		vk::WriteDescriptorSet descSetWrites[3];
+		vk::WriteDescriptorSet descSetWrites[4];
 		descSetWrites[0].setDescriptorCount(1);
 		descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
 		descSetWrites[0].setDstArrayElement(0);
@@ -586,7 +597,25 @@ void Scene::SetupDescriptors() {
 		descSetWrites[2].setDstBinding(2);
 		descSetWrites[2].setDstSet(material.second.descSet);
 		descSetWrites[2].setPImageInfo(&descriptorDiffuseInfo);
-		vkInfo->device.updateDescriptorSets(3, descSetWrites, 0, 0);
+
+		int updateCount = 3;
+
+		if (material.second.shaderModel == ShaderModel::normalMap) {
+			auto descriptorNormalInfo = vk::DescriptorImageInfo()
+				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+				.setImageView(material.second.normal->GetImageView(&vkInfo->device));
+		
+			descSetWrites[3].setDescriptorCount(1);
+			descSetWrites[3].setDescriptorType(vk::DescriptorType::eSampledImage);
+			descSetWrites[3].setDstArrayElement(0);
+			descSetWrites[3].setDstBinding(3);
+			descSetWrites[3].setDstSet(material.second.descSet);
+			descSetWrites[3].setPImageInfo(&descriptorNormalInfo);
+
+			updateCount++;
+		}
+
+		vkInfo->device.updateDescriptorSets(updateCount, descSetWrites, 0, 0);
 
 		matCBIndex++;
 	}
@@ -727,7 +756,7 @@ void Scene::PreparePipeline() {
 	vkInfo->vertex.binding.setInputRate(vk::VertexInputRate::eVertex);
 	vkInfo->vertex.binding.setStride(sizeof(Vertex));
 
-	vkInfo->vertex.attrib.resize(3);
+	vkInfo->vertex.attrib.resize(4);
 
 	vkInfo->vertex.attrib[0].setBinding(0);
 	vkInfo->vertex.attrib[0].setFormat(vk::Format::eR32G32B32Sfloat);
@@ -744,6 +773,11 @@ void Scene::PreparePipeline() {
 	vkInfo->vertex.attrib[2].setLocation(2);
 	vkInfo->vertex.attrib[2].setOffset(sizeof(glm::vec3) + sizeof(glm::vec2));
 
+	vkInfo->vertex.attrib[3].setBinding(0);
+	vkInfo->vertex.attrib[3].setFormat(vk::Format::eR32G32B32Sfloat);
+	vkInfo->vertex.attrib[3].setLocation(3);
+	vkInfo->vertex.attrib[3].setOffset(2 * sizeof(glm::vec3) + sizeof(glm::vec2));
+
 	//蒙皮网格的顶点输入装配属性
 	vk::VertexInputBindingDescription skinnedBinding;
 	std::vector<vk::VertexInputAttributeDescription> skinnedAttrib;
@@ -752,7 +786,7 @@ void Scene::PreparePipeline() {
 	skinnedBinding.setInputRate(vk::VertexInputRate::eVertex);
 	skinnedBinding.setStride(sizeof(SkinnedVertex));
 
-	skinnedAttrib.resize(5);
+	skinnedAttrib.resize(6);
 
 	skinnedAttrib[0].setBinding(0);
 	skinnedAttrib[0].setFormat(vk::Format::eR32G32B32Sfloat);
@@ -775,26 +809,26 @@ void Scene::PreparePipeline() {
 	skinnedAttrib[3].setOffset(2 * sizeof(glm::vec3) + sizeof(glm::vec2));
 
 	skinnedAttrib[4].setBinding(0);
-	skinnedAttrib[4].setFormat(vk::Format::eR32G32B32Uint);
+	skinnedAttrib[4].setFormat(vk::Format::eR32G32B32Sfloat);
 	skinnedAttrib[4].setLocation(4);
 	skinnedAttrib[4].setOffset(3 * sizeof(glm::vec3) + sizeof(glm::vec2));
+
+	skinnedAttrib[5].setBinding(0);
+	skinnedAttrib[5].setFormat(vk::Format::eR32G32B32A32Uint);
+	skinnedAttrib[5].setLocation(5);
+	skinnedAttrib[5].setOffset(4 * sizeof(glm::vec3) + sizeof(glm::vec2));
 
 	/*Create pipelines*/
 	auto vsModule = CreateShaderModule("Shaders\\vertex.spv", vkInfo->device);
 	auto psModule = CreateShaderModule("Shaders\\fragment.spv", vkInfo->device);
 
-	//13.2 Create pipeline shader module
+	//Create pipeline shader module
 	std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderInfo(2);
 
 	pipelineShaderInfo[0] = vk::PipelineShaderStageCreateInfo()
 		.setPName("main")
 		.setModule(vsModule)
 		.setStage(vk::ShaderStageFlagBits::eVertex);
-
-	pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
-		.setPName("main")
-		.setModule(psModule)
-		.setStage(vk::ShaderStageFlagBits::eFragment);
 
 	//Dynamic state
 	auto dynamicInfo = vk::PipelineDynamicStateCreateInfo();
@@ -804,7 +838,7 @@ void Scene::PreparePipeline() {
 	auto viInfo = vk::PipelineVertexInputStateCreateInfo()
 		.setVertexBindingDescriptionCount(1)
 		.setPVertexBindingDescriptions(&vkInfo->vertex.binding)
-		.setVertexAttributeDescriptionCount(3)
+		.setVertexAttributeDescriptionCount(vkInfo->vertex.attrib.size())
 		.setPVertexAttributeDescriptions(vkInfo->vertex.attrib.data());
 
 	//Input assembly state
@@ -876,12 +910,28 @@ void Scene::PreparePipeline() {
 		.setPPushConstantRanges(0)
 		.setSetLayoutCount(vkInfo->descSetLayout.size())
 		.setPSetLayouts(vkInfo->descSetLayout.data());
-	if (vkInfo->device.createPipelineLayout(&plInfo, 0, &vkInfo->pipelineLayout["scene"]) != vk::Result::eSuccess) {
-		MessageBox(0, L"Create pipeline layout failed!!!", 0, 0);
-	}
+	vkInfo->device.createPipelineLayout(&plInfo, 0, &vkInfo->pipelineLayout["scene"]);
 
-	//Create pipeline state
-	vkInfo->pipelines["opaque"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+	auto shaderModelSME = vk::SpecializationMapEntry()
+		.setConstantID(0)
+		.setOffset(0)
+		.setSize(sizeof(int));
+
+	for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+		auto shaderModelSI = vk::SpecializationInfo()
+			.setDataSize(sizeof(int))
+			.setMapEntryCount(1)
+			.setPMapEntries(&shaderModelSME)
+			.setPData(&i);
+
+		pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
+			.setPName("main")
+			.setModule(psModule)
+			.setStage(vk::ShaderStageFlagBits::eFragment)
+			.setPSpecializationInfo(&shaderModelSI);
+
+		meshPipeline.push_back(CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass));
+	}
 	vkInfo->device.destroyShaderModule(vsModule);
 
 	//编译用于蒙皮动画的着色器
@@ -899,7 +949,21 @@ void Scene::PreparePipeline() {
 	skinnedviInfo.setVertexAttributeDescriptionCount(skinnedAttrib.size());
 	skinnedviInfo.setPVertexAttributeDescriptions(skinnedAttrib.data());
 
-	vkInfo->pipelines["skinned"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, skinnedviInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+	for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+		auto shaderModelSI = vk::SpecializationInfo()
+			.setDataSize(sizeof(int))
+			.setMapEntryCount(1)
+			.setPMapEntries(&shaderModelSME)
+			.setPData(&i);
+
+		pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
+			.setPName("main")
+			.setModule(psModule)
+			.setStage(vk::ShaderStageFlagBits::eFragment)
+			.setPSpecializationInfo(&shaderModelSI);
+
+		skinnedMeshPipeline.push_back(CreateGraphicsPipeline(vkInfo->device, dynamicInfo, skinnedviInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass));
+	}
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(psModule);
 
@@ -1102,6 +1166,15 @@ void Scene::PreparePipeline() {
 	vkInfo->device.destroyShaderModule(psModule);
 }
 
+void Scene::PrepareShaderModel() {
+	for (auto& meshRenderer : meshRenderers) {
+		shaderModel[(int)meshRenderer.gameObject->material->shaderModel].push_back(&meshRenderer);
+	}
+	for (auto& skinnedMeshRenderer : skinnedMeshRenderers) {
+		skinnedShaderModel[(int)skinnedMeshRenderer.gameObject->material->shaderModel].push_back(&skinnedMeshRenderer);
+	}
+}
+
 void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 	shadowMap.BeginRenderPass(&cmd);
 
@@ -1142,26 +1215,29 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 	renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)));
 	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 
-	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["opaque"]);
-
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 3, 1, &drawShadowDesc, 0, 0);
 
 	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
 
-	for (auto& meshRenderer : meshRenderers) {
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer.gameObject->descSet, 0, 0);
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer.gameObject->material->descSet, 0, 0);
-		cmd.drawIndexed(meshRenderer.indices.size(), 1, meshRenderer.startIndexLocation, meshRenderer.baseVertexLocation, 1);
+	for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, meshPipeline[i]);
+		for (auto& meshRenderer : shaderModel[i]) {
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer->gameObject->descSet, 0, 0);
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer->gameObject->material->descSet, 0, 0);
+			cmd.drawIndexed(meshRenderer->indices.size(), 1, meshRenderer->startIndexLocation, meshRenderer->baseVertexLocation, 1);
+		}
 	}
 	if (skinnedModelInst.size() > 0) {
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["skinned"]);
 		cmd.bindVertexBuffers(0, 1, &skinnedVertexBuffer->GetBuffer(), offsets);
-		for (auto& skinnedMeshRenderer : skinnedMeshRenderers) {
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &skinnedMeshRenderer.gameObject->descSet, 0, 0);
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &skinnedMeshRenderer.gameObject->material->descSet, 0, 0);
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 4, 1, &skinnedModelInst[skinnedMeshRenderer.skinnedModelIndex].descSet, 0, 0);
-			cmd.drawIndexed(skinnedMeshRenderer.indices.size(), 1, skinnedMeshRenderer.startIndexLocation, skinnedMeshRenderer.baseVertexLocation, 1);
+		for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, skinnedMeshPipeline[i]);
+			for (auto& skinnedMeshRenderer : skinnedShaderModel[i]) {
+				cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &skinnedMeshRenderer->gameObject->descSet, 0, 0);
+				cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &skinnedMeshRenderer->gameObject->material->descSet, 0, 0);
+				cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 4, 1, &skinnedModelInst[skinnedMeshRenderer->skinnedModelIndex].descSet, 0, 0);
+				cmd.drawIndexed(skinnedMeshRenderer->indices.size(), 1, skinnedMeshRenderer->startIndexLocation, skinnedMeshRenderer->baseVertexLocation, 1);
+			}
 		}
 	}
 

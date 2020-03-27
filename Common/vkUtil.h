@@ -98,12 +98,14 @@ struct Vertex {
 	glm::vec3 position;
 	glm::vec2 texCoord;
 	glm::vec3 normal;
+	glm::vec3 tangent;
 };
 
 struct SkinnedVertex {
 	glm::vec3 position;
 	glm::vec2 texCoord;
 	glm::vec3 normal;
+	glm::vec3 tangent;
 	glm::vec3 boneWeights;
 	uint32_t boneIndices[4];
 };
@@ -130,6 +132,7 @@ struct PassConstants {
 
 struct ObjectConstants {
 	glm::mat4x4 worldMatrix;
+	glm::mat4x4 worldMatrix_trans_inv;
 };
 
 struct MaterialConstants {
@@ -141,6 +144,7 @@ struct MaterialConstants {
 
 struct SkinnedConstants {
 	glm::mat4x4 boneTransforms[MAX_BONE_NUM];
+	glm::mat4x4 boneTransforms_inv_trans[MAX_BONE_NUM];
 };
 
 /*=============================================================================================*/

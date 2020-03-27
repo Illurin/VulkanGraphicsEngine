@@ -2,7 +2,7 @@
 
 Model::Model(std::string path) {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_FlipUVs);
+	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 	directory = path.substr(0, path.find_last_of('\\')) + '\\';
    	ProcessNode(scene, scene->mRootNode);
 	SetupRenderInfo();
@@ -34,6 +34,10 @@ Mesh Model::ProcessMesh(const aiScene* scene, aiMesh* mesh) {
 		vertex.normal.x = mesh->mNormals[i].x;
 		vertex.normal.y = mesh->mNormals[i].y;
 		vertex.normal.z = mesh->mNormals[i].z;
+
+		vertex.tangent.x = mesh->mTangents[i].x;
+		vertex.tangent.y = mesh->mTangents[i].y;
+		vertex.tangent.z = mesh->mTangents[i].z;
 
 		if (mesh->mTextureCoords[0]) {
 			vertex.texCoord.x = mesh->mTextureCoords[0][i].x;

@@ -495,9 +495,10 @@ void VkApp::Start() {
 		"Assets\\brickTexture.jpg",
 		"Assets\\icon.jpg",
 		"Assets\\flame.png",
-		"Assets\\SmokeLoop.png"
+		"Assets\\SmokeLoop.png",
+		"Assets\\brickTexture_normal.jpg"
 	};
-	for (size_t i = 0; i < 4; i++) {
+	for (size_t i = 0; i < 5; i++) {
 		auto texture = std::make_unique<Texture>();
 		LoadPixelWithSTB(texturePath[i].c_str(), 32, *texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
 		texture->SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
@@ -514,8 +515,10 @@ void VkApp::Start() {
 	Material brick_mat;
 	brick_mat.name = "brick";
 	brick_mat.diffuse = textures[0].get();
+	brick_mat.normal = textures[4].get();
+	brick_mat.shaderModel = ShaderModel::normalMap;
 	brick_mat.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-	brick_mat.fresnelR0 = glm::vec3(0.5f, 0.5f, 0.5f);
+	brick_mat.fresnelR0 = glm::vec3(0.9f, 0.9f, 0.9f);
 	brick_mat.roughness = 0.01f;
 	brick_mat.matTransform = glm::mat4(1.0f);
 
@@ -674,6 +677,7 @@ void VkApp::Start() {
 	scene.SetupVertexBuffer();
 	scene.SetupDescriptors();
 	scene.PreparePipeline();
+	scene.PrepareShaderModel();
 }
 
 void VkApp::OnGUI() {
@@ -685,9 +689,6 @@ void VkApp::OnGUI() {
 
 	if (ImGui::Button("Particle System Switch", ImVec2(200, 30)))
 		particleSystemEnabled = !particleSystemEnabled;
-
-	float value;
-	ImGui::SliderFloat("sliderTest", &value, 0.0f, 10.0f);
 
 	ImGui::End();
 	ImGui::Render();

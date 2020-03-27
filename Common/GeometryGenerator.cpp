@@ -19,6 +19,10 @@ GeometryGenerator::MeshData GeometryGenerator::CreatePlane(float width, float de
 	vertices[1].normal = { 0.0f, 1.0f, 0.0f };
 	vertices[2].normal = { 0.0f, 1.0f, 0.0f };
 	vertices[3].normal = { 0.0f, 1.0f, 0.0f };
+	vertices[0].tangent = { 1.0f, 0.0f, 0.0f };
+	vertices[1].tangent = { 1.0f, 0.0f, 0.0f };
+	vertices[2].tangent = { 1.0f, 0.0f, 0.0f };
+	vertices[3].tangent = { 1.0f, 0.0f, 0.0f };
 
 	std::vector<UINT> indices = {
 		0, 1, 3, 0, 3, 2
@@ -76,6 +80,13 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 
 		meshData.vertices[i].texCoord.x = theta / glm::two_pi<float>();
 		meshData.vertices[i].texCoord.y = phi / glm::pi<float>();
+
+		//¼ÆËã³öÇÐÏß
+		meshData.vertices[i].tangent.x = -radius * sinf(phi) * sinf(theta);
+		meshData.vertices[i].tangent.y = 0.0f;
+		meshData.vertices[i].tangent.z = +radius * sinf(phi) * cosf(theta);
+
+		meshData.vertices[i].tangent = glm::normalize(meshData.vertices[i].tangent);
 	}
 	return meshData;
 }
@@ -141,16 +152,21 @@ Vertex GeometryGenerator::GetMidPoint(const Vertex& v0, const Vertex& v1) {
 	glm::vec3 n0 = v0.normal;
 	glm::vec3 n1 = v1.normal;
 
+	glm::vec3 t0 = v0.tangent;
+	glm::vec3 t1 = v1.tangent;
+
 	glm::vec2 tex0 = v0.texCoord;
 	glm::vec2 tex1 = v1.texCoord;
 
 	glm::vec3 position = (p0 + p1) * 0.5f;
 	glm::vec3 normal = (n0 + n1) * 0.5f;
+	glm::vec3 tangent = (t0 + t1) * 0.5f;
 	glm::vec2 texCoord = (tex0 + tex1) * 0.5f;
 
 	Vertex vertex;
 	vertex.position = position;
 	vertex.normal = normal;
+	vertex.tangent = tangent;
 	vertex.texCoord = texCoord;
 	return vertex;
 }
