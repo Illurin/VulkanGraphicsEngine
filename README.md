@@ -11,7 +11,9 @@
 
 渲染效果：基于CPU的简易粒子效果和Bloom屏幕特效，PCF阴影
 
-GUI: 接入了dear-ImGui接口，通过修改OnGUI方法来更改GUI的显示（将recordCommand设为true来提醒VkApp进行重绘）
+GUI：接入了dear-ImGui接口，通过修改OnGUI方法来更改GUI的显示（将recordCommand设为true来提醒VkApp进行重绘）
+
+待实现：延迟渲染，可能会重写渲染框架
 
 ## Scene类的正确打开方式
 初始化：
