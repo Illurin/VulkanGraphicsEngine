@@ -313,3 +313,21 @@ texture.SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdP
 		scene.AddMeshRenderer(scene.GetGameObject(meshNames[i]), model.renderInfo[i].vertices, model.renderInfo[i].indices);
 	}
 ```
+
+## ShaderModel对渲染效果的扩充
+
+不同的FragmentShader会以ShaderModel的形式提供使用，以减少着色器的数量
+
+默认的ShaderModel为：
+```
+Material::shaderModel = ShaderModel::common;
+```
+
+使用法线贴图：
+
+Material结构体下提供了法线图的接口：
+```
+Material::normal = &normalMap;
+Material::shaderModel = ShaderModel::normalMap;
+```
+![效果图](Information/演示图片4.png)
