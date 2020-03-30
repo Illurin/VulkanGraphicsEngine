@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define NUM_BONES_PER_VERTEX 4
@@ -93,7 +93,16 @@ private:
 	uint64_t elementByteSize = 0;
 };
 
-/*===========================================���ݽṹ===========================================*/
+struct Attachment {
+	vk::Image image;
+	vk::DeviceMemory memory;
+	vk::ImageView imageView;
+};
+
+Attachment CreateAttachment(vk::Device device, vk::PhysicalDeviceMemoryProperties gpuProp, vk::Format format, vk::ImageAspectFlags imageAspect, uint32_t width, uint32_t height, vk::ImageUsageFlags imageUsage);
+void DestroyAttachment(vk::Device device, Attachment& attachment);
+
+/*===========================================数据存储结构体===========================================*/
 struct Vertex {
 	glm::vec3 position;
 	glm::vec2 texCoord;

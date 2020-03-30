@@ -59,8 +59,6 @@ public:
 	Vulkan* vkInfo;
 
 private:
-	void CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld);
-
 	uint32_t passCount = 2;
 
 	std::vector<GameObject*> rootObjects;
@@ -98,7 +96,7 @@ private:
 	Light directionalLight;
 	Light pointLight;
 	Light spotLight;
-	
+
 	//“ı”∞
 	ShadowMap shadowMap;
 

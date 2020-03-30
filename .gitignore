@@ -365,3 +365,7 @@ healthchecksdb
 /Shaders/PixelShader.hlsl
 /Shaders/ParticleVS.hlsl
 /Shaders/ParticlePS.hlsl
+/Shaders/DeferredShadingProcessing.hlsl
+/Shaders/DeferredShadingOutput.hlsl
+/Shaders/DeferredShadingObjectPass.hlsl
+/Shaders/CompileDeferredShadingHLSL.bat

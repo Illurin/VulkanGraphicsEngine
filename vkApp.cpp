@@ -567,7 +567,7 @@ void VkApp::Start() {
 	for (size_t i = 0; i < model.texturePath.size(); i++) {
 		auto texture = std::make_unique<Texture>();
 		meshNames.push_back(model.texturePath[i].substr(model.texturePath[i].find_last_of('\\') + 1, model.texturePath[i].length() - 1));
-		
+
 		//使用STB库加载模型下的所有贴图并为其创建材质
 		LoadPixelWithSTB(model.texturePath[i].c_str(), 32, *texture, &vkInfo.device, vkInfo.gpu.getMemoryProperties());
 		texture->SetupImage(&vkInfo.device, vkInfo.gpu.getMemoryProperties(), vkInfo.cmdPool, &vkInfo.queue);
@@ -715,7 +715,7 @@ void VkApp::Loop() {
 	if (vkInfo.device.acquireNextImageKHR(vkInfo.swapchain, UINT64_MAX, vkInfo.imageAcquiredSemaphore, vk::Fence(), &currentBuffer) != vk::Result::eSuccess) {
 		MessageBox(0, L"Acquire next image failed!!!", 0, 0);
 	}
-	
+
 	//Record commands
 	if (recordCommand) {
 		auto cmdBeginInfo = vk::CommandBufferBeginInfo()
@@ -726,7 +726,7 @@ void VkApp::Loop() {
 			scene.DrawObject(vkInfo.cmd[i], i);
 			vkInfo.cmd[i].end();
 		}
-		
+
 		recordCommand = false;
 	}
 
@@ -766,7 +766,7 @@ void VkApp::Update() {
 	//Update
 	vkInfo.input.Update();
 	scene.GetGameObject("sphere")->transform.localEulerAngle.y += glm::pi<float>() * deltaTime;
-	scene.GetGameObject("sphere")->dirtyFlag = true;
+	scene.GetGameObject("sphere")->UpdateData();
 
 	/*更新摄像机*/
 	float rotateSpeed = glm::pi<float>() * 0.007f;

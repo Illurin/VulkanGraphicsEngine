@@ -125,7 +125,7 @@ void Scene::SetBloomPostProcessing(PostProcessingProfile::Bloom& profile) {
 void Scene::PrepareImGUI() {
 	imgui = new ImGUI(vkInfo);
 	imgui->Init(vkInfo->width, vkInfo->height);
-	imgui->InitResource();
+	imgui->InitResource(vkInfo->scenePass);
 }
 
 void Scene::UpdateImGUI(float deltaTime) {
@@ -147,31 +147,12 @@ void Scene::UpdateImGUI(float deltaTime) {
 	}
 }
 
-void Scene::CalcCildTransform(GameObject* gameObject, glm::mat4x4 parentToWorld) {
-	if (gameObject->dirtyFlag) {
-		glm::mat4x4 LR = glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
-			* glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
-			* glm::rotate(glm::mat4(1.0f), gameObject->transform.localEulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
-		glm::mat4x4 S = glm::scale(glm::mat4(1.0f), glm::vec3(gameObject->transform.scale));
-		glm::mat4x4 T = glm::translate(glm::mat4(1.0f), glm::vec3(gameObject->transform.position));
-		glm::mat4x4 GR = glm::rotate(glm::mat4(1.0f), gameObject->transform.eulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
-			* glm::rotate(glm::mat4(1.0f), gameObject->transform.eulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
-			* glm::rotate(glm::mat4(1.0f), gameObject->transform.eulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
-		gameObject->toParent = GR * T * S * LR;
-		gameObject->dirtyFlag = false;
-	}
-	ObjectConstants objectConstants;
-	objectConstants.worldMatrix = parentToWorld * gameObject->toParent;
-	objectConstants.worldMatrix_trans_inv = glm::transpose(glm::inverse(objectConstants.worldMatrix));
-	frameResources->objCB[gameObject->objCBIndex]->CopyData(&vkInfo->device, 0, 1, &objectConstants);
-	for (auto& child : gameObject->children) {
-		CalcCildTransform(child, objectConstants.worldMatrix);
-	}
-}
-
 void Scene::UpdateObjectConstants() {
-	for (auto& root : rootObjects) {
-		CalcCildTransform(root, glm::mat4(1.0f));
+	for (auto& gameObject : gameObjects) {
+		if (gameObject.second.dirtyFlag) {
+			frameResources->objCB[gameObject.second.objCBIndex]->CopyData(&vkInfo->device, 0, 1, &gameObject.second.objectConstants);
+			gameObject.second.dirtyFlag = false;
+		}
 	}
 }
 
@@ -748,6 +729,11 @@ void Scene::SetupDescriptors() {
 		descSetWrites[1].setPImageInfo(&descriptorImageInfo);
 		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
 	}
+
+	//初始化物体常量
+	for (auto& root : rootObjects) {
+		root->UpdateData();
+	}
 }
 
 void Scene::PreparePipeline() {
@@ -1180,7 +1166,7 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &shadowPassDesc, 0, 0);
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["shadow"]);
-	
+
 	vk::DeviceSize offsets[] = { 0 };
 	cmd.bindIndexBuffer(indexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
 	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
@@ -1297,6 +1283,6 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &vkInfo->finalPassDescSets[0], 0, 0);
 		cmd.draw(4, 1, 0, 0);
 	}
-	
+
 	cmd.endRenderPass();
 }

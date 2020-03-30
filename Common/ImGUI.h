@@ -161,7 +161,7 @@ public:
 		io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 	}
 
-	void InitResource() {
+	void InitResource(vk::RenderPass renderPass) {
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Create font texture
@@ -468,7 +468,7 @@ public:
 			.setPVertexAttributeDescriptions(vertexInputAttributes.data());
 
 		//Create pipeline state
-		pipeline = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, pipelineLayout, pipelineShaderInfo, vkInfo->scenePass);
+		pipeline = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, pipelineLayout, pipelineShaderInfo, renderPass);
 		vkInfo->device.destroyShaderModule(vsModule);
 		vkInfo->device.destroyShaderModule(psModule);
 	}

@@ -80,3 +80,45 @@ void EndSingleTimeCommand(vk::CommandBuffer* cmd, vk::CommandPool& cmdPool, vk::
 
 	device->freeCommandBuffers(cmdPool, 1, cmd);
 }
+
+Attachment CreateAttachment(vk::Device device, vk::PhysicalDeviceMemoryProperties gpuProp, vk::Format format, vk::ImageAspectFlags imageAspect, uint32_t width, uint32_t height, vk::ImageUsageFlags imageUsage) {
+	Attachment attachment;
+
+	auto imageInfo = vk::ImageCreateInfo()
+		.setArrayLayers(1)
+		.setExtent(vk::Extent3D(width, height, 1))
+		.setFormat(format)
+		.setImageType(vk::ImageType::e2D)
+		.setInitialLayout(vk::ImageLayout::eUndefined)
+		.setMipLevels(1)
+		.setSamples(vk::SampleCountFlagBits::e1)
+		.setTiling(vk::ImageTiling::eOptimal)
+		.setUsage(imageUsage);
+	device.createImage(&imageInfo, 0, &attachment.image);
+
+	vk::MemoryRequirements sceneImageReqs;
+	device.getImageMemoryRequirements(attachment.image, &sceneImageReqs);
+
+	auto memAlloc = vk::MemoryAllocateInfo()
+		.setAllocationSize(sceneImageReqs.size);
+	MemoryTypeFromProperties(gpuProp, sceneImageReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal, memAlloc.memoryTypeIndex);
+	device.allocateMemory(&memAlloc, 0, &attachment.memory);
+
+	device.bindImageMemory(attachment.image, attachment.memory, 0);
+
+	auto sceneImageViewInfo = vk::ImageViewCreateInfo()
+		.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))
+		.setFormat(format)
+		.setImage(attachment.image)
+		.setViewType(vk::ImageViewType::e2D)
+		.setSubresourceRange(vk::ImageSubresourceRange(imageAspect, 0, 1, 0, 1));
+	device.createImageView(&sceneImageViewInfo, 0, &attachment.imageView);
+
+	return attachment;
+}
+
+void DestroyAttachment(vk::Device device, Attachment& attachment) {
+	device.destroy(attachment.image);
+	device.destroy(attachment.imageView);
+	device.free(attachment.memory);
+}

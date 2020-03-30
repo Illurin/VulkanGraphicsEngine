@@ -22,6 +22,14 @@ public:
 	glm::mat4x4 GetLightProjMatrix()const { return lightProj; }
 	glm::mat4x4 GetShadowTransform()const { return shadowTransform; }
 
+	void Destroy(vk::Device device) {
+		device.destroy(shadowMap);
+		device.destroy(shadowMapView);
+		device.destroy(renderPass);
+		device.destroy(framebuffer);
+		device.free(memory);
+	}
+
 private:
 	vk::Image shadowMap;
 	vk::ImageView shadowMapView;

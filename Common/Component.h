@@ -46,13 +46,34 @@ struct GameObject {
 	Material* material;
 	uint32_t objCBIndex = 0;
 
-	GameObject* parent;
+	GameObject* parent = nullptr;
 	std::vector<GameObject*> children;
 
-	glm::mat4x4 toParent;
+	ObjectConstants objectConstants;
 	vk::DescriptorSet descSet;
 
 	bool dirtyFlag = true;
+
+	void UpdateData() {
+		glm::mat4x4 LR = glm::rotate(glm::mat4(1.0f), transform.localEulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), transform.localEulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), transform.localEulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::mat4x4 S = glm::scale(glm::mat4(1.0f), glm::vec3(transform.scale));
+		glm::mat4x4 T = glm::translate(glm::mat4(1.0f), glm::vec3(transform.position));
+		glm::mat4x4 GR = glm::rotate(glm::mat4(1.0f), transform.eulerAngle.x, glm::vec3(1.0f, 0.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), transform.eulerAngle.y, glm::vec3(0.0f, 1.0f, 0.0f))
+			* glm::rotate(glm::mat4(1.0f), transform.eulerAngle.z, glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::mat4x4 toParent = GR * T * S * LR;
+		
+		objectConstants.worldMatrix = (parent ? parent->objectConstants.worldMatrix : glm::mat4(1.0f)) * toParent;
+		objectConstants.worldMatrix_trans_inv = glm::transpose(glm::inverse(objectConstants.worldMatrix));
+
+		dirtyFlag = true;
+
+		for (auto& child : children) {
+			child->UpdateData();
+		}
+	}
 };
 
 struct MeshRenderer {

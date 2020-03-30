@@ -20,17 +20,20 @@
     <Filter Include="着色器\通用">
       <UniqueIdentifier>{da0d8d2c-834a-4cd1-9418-39fe24b04c38}</UniqueIdentifier>
     </Filter>
-    <Filter Include="着色器\阴影">
-      <UniqueIdentifier>{b5c58542-50d5-4b2c-b14e-11dc2eaef352}</UniqueIdentifier>
+    <Filter Include="渲染辅助库">
+      <UniqueIdentifier>{c8d258db-172a-498e-a577-1a9250bfb86e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="着色器\天空盒">
-      <UniqueIdentifier>{62d1656d-a40d-41ba-a0c0-5a6d3f399be9}</UniqueIdentifier>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{d8019a9b-0df8-4a09-9303-0af2864aaca9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="着色器\延迟渲染">
+      <UniqueIdentifier>{4a0bbe64-c325-4aea-a2df-9c8268439818}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="渲染辅助库\引擎框架">
+      <UniqueIdentifier>{275b437d-1ab8-4671-8b7d-302c5ff5ec4e}</UniqueIdentifier>
     </Filter>
     <Filter Include="着色器\粒子效果">
       <UniqueIdentifier>{1c16e495-ca46-414d-970c-23e745e4ff6e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="渲染辅助库">
-      <UniqueIdentifier>{c8d258db-172a-498e-a577-1a9250bfb86e}</UniqueIdentifier>
     </Filter>
     <Filter Include="着色器\辉光">
       <UniqueIdentifier>{90d009bf-89fd-44b4-aae8-0ca8aa26b54a}</UniqueIdentifier>
@@ -38,11 +41,11 @@
     <Filter Include="着色器\蒙皮动画">
       <UniqueIdentifier>{bdaf290d-1f2b-414a-a0e8-11e694b01a51}</UniqueIdentifier>
     </Filter>
-    <Filter Include="引擎框架">
-      <UniqueIdentifier>{275b437d-1ab8-4671-8b7d-302c5ff5ec4e}</UniqueIdentifier>
+    <Filter Include="着色器\天空盒">
+      <UniqueIdentifier>{62d1656d-a40d-41ba-a0c0-5a6d3f399be9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="imgui">
-      <UniqueIdentifier>{d8019a9b-0df8-4a09-9303-0af2864aaca9}</UniqueIdentifier>
+    <Filter Include="着色器\阴影">
+      <UniqueIdentifier>{b5c58542-50d5-4b2c-b14e-11dc2eaef352}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -83,16 +86,16 @@
       <Filter>素材加载库</Filter>
     </ClInclude>
     <ClInclude Include="Common\Scene.h">
-      <Filter>引擎框架</Filter>
+      <Filter>渲染辅助库\引擎框架</Filter>
     </ClInclude>
     <ClInclude Include="vkApp.h">
       <Filter>源文件</Filter>
     </ClInclude>
     <ClInclude Include="Common\Component.h">
-      <Filter>引擎框架</Filter>
+      <Filter>渲染辅助库\引擎框架</Filter>
     </ClInclude>
     <ClInclude Include="Common\Thread.h">
-      <Filter>引擎框架</Filter>
+      <Filter>渲染辅助库\引擎框架</Filter>
     </ClInclude>
     <ClInclude Include="Third-Party\Include\imgui\imconfig.h">
       <Filter>imgui</Filter>
@@ -114,6 +117,9 @@
     </ClInclude>
     <ClInclude Include="Common\ImGUI.h">
       <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\DeferredShading.h">
+      <Filter>渲染辅助库</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -154,7 +160,7 @@
       <Filter>素材加载库</Filter>
     </ClCompile>
     <ClCompile Include="Common\Scene.cpp">
-      <Filter>引擎框架</Filter>
+      <Filter>渲染辅助库\引擎框架</Filter>
     </ClCompile>
     <ClCompile Include="vkApp.cpp">
       <Filter>源文件</Filter>
@@ -170,6 +176,9 @@
     </ClCompile>
     <ClCompile Include="Third-Party\Include\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\DeferredShading.cpp">
+      <Filter>渲染辅助库</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -188,9 +197,6 @@
     <FxCompile Include="Shaders\VertexShader.hlsl">
       <Filter>着色器\通用</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\PixelShader.hlsl">
-      <Filter>着色器\通用</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\SkyboxVS.hlsl">
       <Filter>着色器\天空盒</Filter>
     </FxCompile>
@@ -206,12 +212,6 @@
     <FxCompile Include="Shaders\ParticleVS.hlsl">
       <Filter>着色器\粒子效果</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\BloomPS.hlsl">
-      <Filter>着色器\辉光</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BloomVS.hlsl">
-      <Filter>着色器\辉光</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\BlurH.hlsl">
       <Filter>着色器\辉光</Filter>
     </FxCompile>
@@ -226,6 +226,24 @@
     </FxCompile>
     <FxCompile Include="Shaders\SkinnedVS.hlsl">
       <Filter>着色器\蒙皮动画</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DeferredShadingOutput.hlsl">
+      <Filter>着色器\延迟渲染</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DeferredShadingProcessing.hlsl">
+      <Filter>着色器\延迟渲染</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DeferredShadingObjectPass.hlsl">
+      <Filter>着色器\延迟渲染</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BloomPS.hlsl">
+      <Filter>着色器\辉光</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BloomVS.hlsl">
+      <Filter>着色器\通用</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PixelShader.hlsl">
+      <Filter>着色器\通用</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
