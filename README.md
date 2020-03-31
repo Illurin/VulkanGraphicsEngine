@@ -5,6 +5,8 @@
 
 ## 重构后的代码框架
 
+更新日志：封装了独立的RenderEngine，并完成了一部分渲染结构的转移。增加了简单的DeferredShading的封装
+
 图片库：WIC和STBImage，封装了基于WIC的立方体图
 
 模型库：Assimp，可稳定加载的模型格式有obj（不带动画），fbx（带动画）
@@ -12,8 +14,6 @@
 渲染效果：基于CPU的简易粒子效果和Bloom屏幕特效，PCF阴影
 
 GUI：接入了dear-ImGui接口，通过修改OnGUI方法来更改GUI的显示（将recordCommand设为true来提醒VkApp进行重绘）
-
-待实现：延迟渲染，可能会重写渲染框架
 
 ## Scene类的正确打开方式
 初始化：
@@ -110,6 +110,14 @@ scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.
 ```
 scene.SetShadowMap(width, height, lightDirection, radius);
 ```
+
+## 延迟渲染简要说明
+
+默认场景中的GameObject物体，人物模型都会使用延迟渲染绘制，天空盒粒子效果等都采用前向渲染。目前仅支持3光源单阴影，后续可能会添加多光源。
+
+延迟渲染暂不支持法线贴图，原来的前向渲染管线保留。
+
+延迟渲染将会用于后续添加体积光等特效。
 
 ## 骨骼蒙皮动画
 ```
