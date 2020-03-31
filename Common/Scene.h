@@ -9,6 +9,7 @@
 #include "ParticleSystem.h"
 #include "PostProcessing.h"
 #include "ImGUI.h"
+#include "RenderEngine.h"
 
 class Scene {
 public:
@@ -49,6 +50,7 @@ public:
 	void UpdateSkinnedModel(float deltaTime);
 	void UpdateCPUParticleSystem(float deltaTime);
 
+	void SetupRenderEngine();
 	void SetupVertexBuffer();
 	void SetupDescriptors();
 	void PreparePipeline();
@@ -119,6 +121,9 @@ private:
 
 	//ImGUI
 	ImGUI* imgui = nullptr;
+
+	//渲染引擎
+	RenderEngine renderEngine;
 
 	//后处理
 	std::unique_ptr<PostProcessing::Bloom> bloom;

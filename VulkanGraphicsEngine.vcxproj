@@ -155,7 +155,6 @@
   <ItemGroup>
     <ClInclude Include="Common\Camera.h" />
     <ClInclude Include="Common\Component.h" />
-    <ClInclude Include="Common\DeferredShading.h" />
     <ClInclude Include="Common\FrameResource.h" />
     <ClInclude Include="Common\GeometryGenerator.h" />
     <ClInclude Include="Common\ImGUI.h" />
@@ -163,6 +162,7 @@
     <ClInclude Include="Common\ParticleSystem.h" />
     <ClInclude Include="Common\PlayerController.h" />
     <ClInclude Include="Common\PostProcessing.h" />
+    <ClInclude Include="Common\RenderEngine.h" />
     <ClInclude Include="Common\Scene.h" />
     <ClInclude Include="Common\ShadowMap.h" />
     <ClInclude Include="Common\SkinnedData.h" />
@@ -180,12 +180,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\Camera.cpp" />
-    <ClCompile Include="Common\DeferredShading.cpp" />
     <ClCompile Include="Common\GeometryGenerator.cpp" />
     <ClCompile Include="Common\Model.cpp" />
     <ClCompile Include="Common\ParticleSystem.cpp" />
     <ClCompile Include="Common\PlayerController.cpp" />
     <ClCompile Include="Common\PostProcessing.cpp" />
+    <ClCompile Include="Common\RenderEngine.cpp" />
     <ClCompile Include="Common\Scene.cpp" />
     <ClCompile Include="Common\ShadowMap.cpp" />
     <ClCompile Include="Common\SkinnedData.cpp" />
@@ -239,13 +239,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="Shaders\DeferredShadingObjectPass.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="Shaders\DeferredShadingOutput.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

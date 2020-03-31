@@ -10,7 +10,6 @@ public:
 private:
 	void Update();
 	void OnGUI();
-	void PrepareScenePass();
 	void PrepareFinalPass();
 
 	Vulkan vkInfo;

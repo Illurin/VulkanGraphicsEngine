@@ -183,28 +183,12 @@ struct Vulkan {
 		std::vector<vk::VertexInputAttributeDescription> attrib;
 	}vertex;
 
-	struct {
-		vk::Format format;
-		vk::Image image;
-		vk::DeviceMemory memory;
-		vk::ImageView imageView;
-	}depth;
-
-	struct {
-		vk::Image image;
-		vk::DeviceMemory memory;
-		vk::ImageView imageView;
-		vk::Framebuffer framebuffer;
-	}scene;
-
 	std::unordered_map<std::string, vk::Pipeline> pipelines;
 	std::unordered_map<std::string, vk::PipelineLayout> pipelineLayout;
 
-	vk::RenderPass scenePass;
 	vk::RenderPass finalPass;
 
 	vk::DescriptorPool descPool;
-	std::vector<vk::DescriptorSetLayout> descSetLayout;
 
 	vk::DescriptorSetLayout finalPassLayout;
 	std::vector<vk::DescriptorSet> finalPassDescSets;

@@ -125,7 +125,7 @@ void Scene::SetBloomPostProcessing(PostProcessingProfile::Bloom& profile) {
 void Scene::PrepareImGUI() {
 	imgui = new ImGUI(vkInfo);
 	imgui->Init(vkInfo->width, vkInfo->height);
-	imgui->InitResource(vkInfo->scenePass);
+	imgui->InitResource(renderEngine.forwardShading.renderPass);
 }
 
 void Scene::UpdateImGUI(float deltaTime) {
@@ -203,6 +203,14 @@ void Scene::UpdateCPUParticleSystem(float deltaTime) {
 	for (auto& particleSystem : particleSystems) {
 		particleSystem.UpdateParticles(deltaTime, &vkInfo->device);
 	}
+}
+
+void Scene::SetupRenderEngine() {
+	renderEngine.vkInfo = vkInfo;
+	renderEngine.PrepareResource();
+	renderEngine.PrepareGBuffer();
+	renderEngine.PrepareDeferredShading();
+	renderEngine.PrepareForwardShading();
 }
 
 void Scene::SetupVertexBuffer() {
@@ -305,82 +313,7 @@ void Scene::SetupDescriptors() {
 			.setUnnormalizedCoordinates(VK_FALSE);
 		vkInfo->device.createSampler(&samplerInfo, 0, &comparisonSampler);
 	}
-
-	//第一个管线布局：世界矩阵
-	auto objCBBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
-
-	vk::DescriptorSetLayoutBinding layoutBindingObject[] = {
-		objCBBinding
-	};
-
-	//第二个管线布局：纹理，法线贴图，材质常量和采样器
-	auto materialCBBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	auto samplerBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(1)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampler)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	auto textureBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(2)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampledImage)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	auto normalMapBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(3)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampledImage)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	vk::DescriptorSetLayoutBinding layoutBindingMaterial[] = {
-		textureBinding, materialCBBinding, samplerBinding, normalMapBinding
-	};
-
-	//第三个管线布局：Pass常量
-	auto passCBBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		.setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment);
-
-	vk::DescriptorSetLayoutBinding layoutBindingPass[] = {
-		passCBBinding
-	};
-
-	//第四个管线布局：比较采样器和阴影贴图
-	auto shadowSamplerBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampler)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	auto shadowMapBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(1)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampledImage)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	vk::DescriptorSetLayoutBinding layoutBindingShadow[] = {
-		shadowSamplerBinding, shadowMapBinding
-	};
-
-	//第五个管线布局：骨骼的变换矩阵
-	auto layoutBindingSkinned = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
-
+	
 	//后处理效果的管线布局：采样器和源贴图
 	auto finalSamplerBinding = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
@@ -398,34 +331,6 @@ void Scene::SetupDescriptors() {
 		finalSamplerBinding, finalImageBinding
 	};
 
-	//为渲染管线提供管线布局
-	vkInfo->descSetLayout.resize(5);
-
-	auto descLayoutInfo_obj = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(1)
-		.setPBindings(layoutBindingObject);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_obj, 0, &vkInfo->descSetLayout[0]);
-
-	auto descLayoutInfo_material = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(4)
-		.setPBindings(layoutBindingMaterial);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_material, 0, &vkInfo->descSetLayout[1]);
-
-	auto descLayoutInfo_pass = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(1)
-		.setPBindings(layoutBindingPass);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_pass, 0, &vkInfo->descSetLayout[2]);
-
-	auto descLayoutInfo_shadow = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(2)
-		.setPBindings(layoutBindingShadow);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_shadow, 0, &vkInfo->descSetLayout[3]);
-
-	auto descLayoutInfo_skinned = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(1)
-		.setPBindings(&layoutBindingSkinned);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_skinned, 0, &vkInfo->descSetLayout[4]);
-
 	//为finalPass提供管线布局
 	auto descLayoutInfo_final = vk::DescriptorSetLayoutCreateInfo()
 		.setBindingCount(2)
@@ -440,17 +345,19 @@ void Scene::SetupDescriptors() {
 	//创建描述符池
 	uint32_t postprocessingDescCount = bloom ? bloom->GetRequiredDescCount() : 0;
 
-	vk::DescriptorPoolSize typeCount[3];
+	vk::DescriptorPoolSize typeCount[4];
 	typeCount[0].setType(vk::DescriptorType::eUniformBuffer);
 	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0));
 	typeCount[1].setType(vk::DescriptorType::eSampledImage);
 	typeCount[1].setDescriptorCount(matCount * 2 + 2 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 	typeCount[2].setType(vk::DescriptorType::eSampler);
 	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
+	typeCount[3].setType(vk::DescriptorType::eInputAttachment);
+	typeCount[3].setDescriptorCount(5);
 
 	auto descriptorPoolInfo = vk::DescriptorPoolCreateInfo()
-		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount)
-		.setPoolSizeCount(3)
+		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount + 1)
+		.setPoolSizeCount(4)
 		.setPPoolSizes(typeCount);
 	vkInfo->device.createDescriptorPool(&descriptorPoolInfo, 0, &vkInfo->descPool);
 
@@ -461,7 +368,7 @@ void Scene::SetupDescriptors() {
 		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 			.setDescriptorPool(vkInfo->descPool)
 			.setDescriptorSetCount(1)
-			.setPSetLayouts(&vkInfo->descSetLayout[0]);
+			.setPSetLayouts(&renderEngine.descSetLayout[0]);
 		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &gameObject.second.descSet);
 	}
 
@@ -469,26 +376,26 @@ void Scene::SetupDescriptors() {
 		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 			.setDescriptorPool(vkInfo->descPool)
 			.setDescriptorSetCount(1)
-			.setPSetLayouts(&vkInfo->descSetLayout[1]);
+			.setPSetLayouts(&renderEngine.descSetLayout[1]);
 		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &material.second.descSet);
 	}
 
 	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 		.setDescriptorPool(vkInfo->descPool)
 		.setDescriptorSetCount(1)
-		.setPSetLayouts(&vkInfo->descSetLayout[2]);
+		.setPSetLayouts(&renderEngine.descSetLayout[2]);
 	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &scenePassDesc);
 
 	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 		.setDescriptorPool(vkInfo->descPool)
 		.setDescriptorSetCount(1)
-		.setPSetLayouts(&vkInfo->descSetLayout[2]);
+		.setPSetLayouts(&renderEngine.descSetLayout[2]);
 	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &shadowPassDesc);
 
 	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 		.setDescriptorPool(vkInfo->descPool)
 		.setDescriptorSetCount(1)
-		.setPSetLayouts(&vkInfo->descSetLayout[3]);
+		.setPSetLayouts(&renderEngine.descSetLayout[3]);
 	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &drawShadowDesc);
 
 	//分配蒙皮动画的描述符
@@ -496,7 +403,7 @@ void Scene::SetupDescriptors() {
 		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 			.setDescriptorPool(vkInfo->descPool)
 			.setDescriptorSetCount(1)
-			.setPSetLayouts(&vkInfo->descSetLayout[4]);
+			.setPSetLayouts(&renderEngine.descSetLayout[4]);
 		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &skinnedModel.descSet);
 	}
 
@@ -505,7 +412,7 @@ void Scene::SetupDescriptors() {
 		descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 			.setDescriptorPool(vkInfo->descPool)
 			.setDescriptorSetCount(1)
-			.setPSetLayouts(&vkInfo->descSetLayout[1]);
+			.setPSetLayouts(&renderEngine.descSetLayout[1]);
 		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &skybox.descSet);
 	}
 
@@ -703,7 +610,7 @@ void Scene::SetupDescriptors() {
 	}
 
 	//初始化后处理
-	if (bloom) bloom->Init(vkInfo, vkInfo->scene.imageView);
+	if (bloom) bloom->Init(vkInfo, renderEngine.renderTarget.imageView);
 
 	//更新FinalPass的描述符
 	{
@@ -711,7 +618,7 @@ void Scene::SetupDescriptors() {
 			.setSampler(repeatSampler);
 		
 		auto descriptorImageInfo = vk::DescriptorImageInfo()
-			.setImageView((bloom) ? (bloom->GetImageView()) : (vkInfo->scene.imageView))
+			.setImageView((bloom) ? (bloom->GetImageView()) : (renderEngine.renderTarget.imageView))
 			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
 		vk::WriteDescriptorSet descSetWrites[2];
@@ -729,6 +636,8 @@ void Scene::SetupDescriptors() {
 		descSetWrites[1].setPImageInfo(&descriptorImageInfo);
 		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
 	}
+
+	renderEngine.PrepareDescriptor();
 
 	//初始化物体常量
 	for (auto& root : rootObjects) {
@@ -894,8 +803,8 @@ void Scene::PreparePipeline() {
 	auto plInfo = vk::PipelineLayoutCreateInfo()
 		.setPushConstantRangeCount(0)
 		.setPPushConstantRanges(0)
-		.setSetLayoutCount(vkInfo->descSetLayout.size())
-		.setPSetLayouts(vkInfo->descSetLayout.data());
+		.setSetLayoutCount(renderEngine.descSetLayout.size())
+		.setPSetLayouts(renderEngine.descSetLayout.data());
 	vkInfo->device.createPipelineLayout(&plInfo, 0, &vkInfo->pipelineLayout["scene"]);
 
 	auto shaderModelSME = vk::SpecializationMapEntry()
@@ -916,7 +825,7 @@ void Scene::PreparePipeline() {
 			.setStage(vk::ShaderStageFlagBits::eFragment)
 			.setPSpecializationInfo(&shaderModelSI);
 
-		meshPipeline.push_back(CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass));
+		meshPipeline.push_back(CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, renderEngine.forwardShading.renderPass));
 	}
 	vkInfo->device.destroyShaderModule(vsModule);
 
@@ -948,7 +857,7 @@ void Scene::PreparePipeline() {
 			.setStage(vk::ShaderStageFlagBits::eFragment)
 			.setPSpecializationInfo(&shaderModelSI);
 
-		skinnedMeshPipeline.push_back(CreateGraphicsPipeline(vkInfo->device, dynamicInfo, skinnedviInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass));
+		skinnedMeshPipeline.push_back(CreateGraphicsPipeline(vkInfo->device, dynamicInfo, skinnedviInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, renderEngine.forwardShading.renderPass));
 	}
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(psModule);
@@ -963,13 +872,13 @@ void Scene::PreparePipeline() {
 	//创建用于绘制天空球的管线
 	dsInfo.setDepthCompareOp(vk::CompareOp::eLessOrEqual);
 
-	vk::DescriptorSetLayout descSetLayout[] = { vkInfo->descSetLayout[1], vkInfo->descSetLayout[2] };
+	vk::DescriptorSetLayout descSetLayout[] = { renderEngine.descSetLayout[1], renderEngine.descSetLayout[2] };
 
 	auto skyboxPipelineInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayoutCount(2)
 		.setPSetLayouts(descSetLayout);
 	vkInfo->device.createPipelineLayout(&skyboxPipelineInfo, 0, &vkInfo->pipelineLayout["skybox"]);
-	vkInfo->pipelines["skybox"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["skybox"], pipelineShaderInfo, vkInfo->scenePass);
+	vkInfo->pipelines["skybox"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["skybox"], pipelineShaderInfo, renderEngine.forwardShading.renderPass);
 
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(psModule);
@@ -1141,15 +1050,17 @@ void Scene::PreparePipeline() {
 		.setVertexAttributeDescriptionCount(particleAttrib.size())
 		.setPVertexAttributeDescriptions(particleAttrib.data());
 
-	vkInfo->pipelines["smoke"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+	vkInfo->pipelines["smoke"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, renderEngine.forwardShading.renderPass);
 
 	attState.setDstColorBlendFactor(vk::BlendFactor::eOne);
 
-	vkInfo->pipelines["flame"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, vkInfo->scenePass);
+	vkInfo->pipelines["flame"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, renderEngine.forwardShading.renderPass);
 
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(gsModule);
 	vkInfo->device.destroyShaderModule(psModule);
+
+	renderEngine.PreparePipeline();
 }
 
 void Scene::PrepareShaderModel() {
@@ -1188,25 +1099,47 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 
 	cmd.endRenderPass();
 
+	renderEngine.BeginDeferredShading(cmd);
+
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.outputPipeline);
+
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
+
+	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
+
+	for (auto& meshRenderer : meshRenderers) {
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer.gameObject->descSet, 0, 0);
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer.gameObject->material->descSet, 0, 0);
+		cmd.drawIndexed(meshRenderer.indices.size(), 1, meshRenderer.startIndexLocation, meshRenderer.baseVertexLocation, 1);
+	}
+	if (skinnedModelInst.size() > 0) {
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["skinnedShadow"]);
+		cmd.bindVertexBuffers(0, 1, &skinnedVertexBuffer->GetBuffer(), offsets);
+		for (auto& skinnedMeshRenderer : skinnedMeshRenderers) {
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &skinnedMeshRenderer.gameObject->descSet, 0, 0);
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 4, 1, &skinnedModelInst[skinnedMeshRenderer.skinnedModelIndex].descSet, 0, 0);
+			cmd.drawIndexed(skinnedMeshRenderer.indices.size(), 1, skinnedMeshRenderer.startIndexLocation, skinnedMeshRenderer.baseVertexLocation, 1);
+		}
+	}
+
+	cmd.nextSubpass(vk::SubpassContents::eInline);
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.processingPipeline);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.pipelineLayout, 1, 1, &renderEngine.gbuffer.descSet, 0, 0);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.pipelineLayout, 2, 1, &scenePassDesc, 0, 0);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.pipelineLayout, 3, 1, &drawShadowDesc, 0, 0);
+	cmd.draw(4, 1, 0, 0);
+
+	cmd.endRenderPass();
+
 	//Begin render pass
-	vk::RenderPassBeginInfo renderPassBeginInfo;
-	vk::ClearValue clearValue[2] = {
-		vk::ClearColorValue(std::array<float, 4>({0.0f, 0.0f, 0.0f, 0.0f})),
-		vk::ClearDepthStencilValue(1.0f, 0)
-	};
-	renderPassBeginInfo.setClearValueCount(2);
-	renderPassBeginInfo.setPClearValues(clearValue);
-	renderPassBeginInfo.setFramebuffer(vkInfo->scene.framebuffer);
-	renderPassBeginInfo.setRenderPass(vkInfo->scenePass);
-	renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)));
-	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
+	renderEngine.BeginForwardShading(cmd);
 
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 3, 1, &drawShadowDesc, 0, 0);
 
 	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
 
-	for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+	/*for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, meshPipeline[i]);
 		for (auto& meshRenderer : shaderModel[i]) {
 			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer->gameObject->descSet, 0, 0);
@@ -1225,7 +1158,7 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 				cmd.drawIndexed(skinnedMeshRenderer->indices.size(), 1, skinnedMeshRenderer->startIndexLocation, skinnedMeshRenderer->baseVertexLocation, 1);
 			}
 		}
-	}
+	}*/
 
 	//绘制天空盒
 	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
@@ -1265,10 +1198,16 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 		bloom->BlurV(&cmd);
 	}
 
+	vk::ClearValue clearValue[2] = {
+		vk::ClearColorValue(std::array<float, 4>({0.0f, 0.0f, 0.0f, 0.0f})),
+		vk::ClearDepthStencilValue(1.0f, 0)
+	};
+	vk::RenderPassBeginInfo renderPassBeginInfo;
 	renderPassBeginInfo.setClearValueCount(1);
 	renderPassBeginInfo.setPClearValues(clearValue);
 	renderPassBeginInfo.setFramebuffer(vkInfo->finalFramebuffers[currentBuffer]);
 	renderPassBeginInfo.setRenderPass(vkInfo->finalPass);
+	renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)));
 	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["final"]);
 

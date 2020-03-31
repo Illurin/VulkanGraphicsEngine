@@ -29,9 +29,6 @@
     <Filter Include="着色器\延迟渲染">
       <UniqueIdentifier>{4a0bbe64-c325-4aea-a2df-9c8268439818}</UniqueIdentifier>
     </Filter>
-    <Filter Include="渲染辅助库\引擎框架">
-      <UniqueIdentifier>{275b437d-1ab8-4671-8b7d-302c5ff5ec4e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="着色器\粒子效果">
       <UniqueIdentifier>{1c16e495-ca46-414d-970c-23e745e4ff6e}</UniqueIdentifier>
     </Filter>
@@ -46,6 +43,9 @@
     </Filter>
     <Filter Include="着色器\阴影">
       <UniqueIdentifier>{b5c58542-50d5-4b2c-b14e-11dc2eaef352}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="引擎框架">
+      <UniqueIdentifier>{275b437d-1ab8-4671-8b7d-302c5ff5ec4e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -86,16 +86,16 @@
       <Filter>素材加载库</Filter>
     </ClInclude>
     <ClInclude Include="Common\Scene.h">
-      <Filter>渲染辅助库\引擎框架</Filter>
+      <Filter>引擎框架</Filter>
     </ClInclude>
     <ClInclude Include="vkApp.h">
       <Filter>源文件</Filter>
     </ClInclude>
     <ClInclude Include="Common\Component.h">
-      <Filter>渲染辅助库\引擎框架</Filter>
+      <Filter>引擎框架</Filter>
     </ClInclude>
     <ClInclude Include="Common\Thread.h">
-      <Filter>渲染辅助库\引擎框架</Filter>
+      <Filter>引擎框架</Filter>
     </ClInclude>
     <ClInclude Include="Third-Party\Include\imgui\imconfig.h">
       <Filter>imgui</Filter>
@@ -118,8 +118,8 @@
     <ClInclude Include="Common\ImGUI.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="Common\DeferredShading.h">
-      <Filter>渲染辅助库</Filter>
+    <ClInclude Include="Common\RenderEngine.h">
+      <Filter>引擎框架</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -160,7 +160,7 @@
       <Filter>素材加载库</Filter>
     </ClCompile>
     <ClCompile Include="Common\Scene.cpp">
-      <Filter>渲染辅助库\引擎框架</Filter>
+      <Filter>引擎框架</Filter>
     </ClCompile>
     <ClCompile Include="vkApp.cpp">
       <Filter>源文件</Filter>
@@ -177,8 +177,8 @@
     <ClCompile Include="Third-Party\Include\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="Common\DeferredShading.cpp">
-      <Filter>渲染辅助库</Filter>
+    <ClCompile Include="Common\RenderEngine.cpp">
+      <Filter>引擎框架</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -231,9 +231,6 @@
       <Filter>着色器\延迟渲染</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DeferredShadingProcessing.hlsl">
-      <Filter>着色器\延迟渲染</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DeferredShadingObjectPass.hlsl">
       <Filter>着色器\延迟渲染</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\BloomPS.hlsl">
