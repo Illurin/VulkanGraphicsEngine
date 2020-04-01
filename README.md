@@ -30,7 +30,7 @@ scene.SetAmbientLight(glm::vec4(0.3f, 0.3f, 0.3f, 0.3f));
 scene.SetMainCamera(&mainCamera);
 
 //创建一个点光
-scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
+scene.SetPointLight(0, glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
 ```
 创建物体对象：
 ```
@@ -123,9 +123,9 @@ scene.SetShadowMap(width, height, lightDirection, radius);
 
 设置多光源：
 ```
-void SetDirectionalLight(int index, glm::vec3 direction, glm::vec3 strength);
-void SetPointLight(int index, glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd);
-void SetSpotLight(int index, glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower);
+void Scene::SetDirectionalLight(int index, glm::vec3 direction, glm::vec3 strength);
+void Scene::SetPointLight(int index, glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd);
+void Scene::SetSpotLight(int index, glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower);
 ```
 
 修改最大光源数量：
