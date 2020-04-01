@@ -356,7 +356,7 @@ void VkApp::Start() {
 	scene.SetMainCamera(&mainCamera);
 
 	//创建一个点光
-	scene.SetPointLight(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
+	scene.SetPointLight(0, glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
 
 	//利用Texture辅助库加载图片
 	std::vector<std::unique_ptr<Texture>> textures;
@@ -554,18 +554,29 @@ void VkApp::Start() {
 void VkApp::OnGUI() {
 	ImGui::NewFrame();
 
-	ImGui::SetNextWindowSize(ImVec2(300, 200), 0);
+	ImGui::SetNextWindowSize(ImVec2(400, 200), 0);
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
 	ImGui::Begin("ImGUI Test");
 
 	if (ImGui::Button("Particle System Switch", ImVec2(200, 30)))
 		particleSystemEnabled = !particleSystemEnabled;
 
+	ImGui::SliderFloat3("light position", lightController.position, -10.0f, 10.0f);
+	ImGui::SliderFloat3("light color", lightController.color, 0.0f, 1.0f);
+	ImGui::SliderFloat("light fall off start", &lightController.fallOffStart, 0.0f, 3.0f);
+	ImGui::SliderFloat("light fall off end", &lightController.fallOffEnd, 0.0f, 10.0f);
+
 	ImGui::End();
 	ImGui::Render();
 
-	if (ImGui::IsAnyWindowHovered() || ImGui::IsAnyItemHovered())
-		recordCommand = true;
+	recordCommand = true;
+
+	glm::vec3 position = glm::vec3(lightController.position[0], lightController.position[1], lightController.position[2]);
+	glm::vec3 color = glm::vec3(lightController.color[0], lightController.color[1], lightController.color[2]);
+
+	for (int i = 1; i < NUM_POINT_LIGHT; i++) {
+		scene.SetPointLight(i, position + glm::vec3(2.0f, 0.0f, 2.0f) * (float)i, color, lightController.fallOffStart, lightController.fallOffEnd);
+	}
 }
 
 void VkApp::Loop() {

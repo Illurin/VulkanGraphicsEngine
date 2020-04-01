@@ -26,9 +26,9 @@ public:
 
 	//光照阴影方法
 	void SetAmbientLight(glm::vec3 strength);
-	void SetDirectionalLight(glm::vec3 direction, glm::vec3 strength);
-	void SetPointLight(glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd);
-	void SetSpotLight(glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower);
+	void SetDirectionalLight(int index, glm::vec3 direction, glm::vec3 strength);
+	void SetPointLight(int index, glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd);
+	void SetSpotLight(int index, glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower);
 	void SetShadowMap(uint32_t width, uint32_t height, glm::vec3 lightDirection, float radius);
 
 	void SetMainCamera(Camera* mainCamera);
@@ -94,9 +94,7 @@ private:
 	//场景属性
 	//灯光
 	glm::vec3 ambientLight;
-	Light directionalLight;
-	Light pointLight;
-	Light spotLight;
+	Light lights[NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT + NUM_SPOT_LIGHT];
 
 	//阴影
 	ShadowMap shadowMap;

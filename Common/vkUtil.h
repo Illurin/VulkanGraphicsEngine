@@ -1,8 +1,13 @@
 ﻿#pragma once
 
 #define VK_USE_PLATFORM_WIN32_KHR
+
 #define NUM_BONES_PER_VERTEX 4
 #define MAX_BONE_NUM 500
+
+#define NUM_DIRECTIONAL_LIGHT 1
+#define NUM_POINT_LIGHT 10
+#define NUM_SPOT_LIGHT 1
 
 #include <SDKDDKVer.h>
 #define WIN32_LEAN_AND_MEAN
@@ -136,7 +141,7 @@ struct PassConstants {
 	glm::vec4 eyePos;
 	glm::vec4 ambientLight;
 
-	Light lights[3];
+	Light lights[NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT + NUM_SPOT_LIGHT];
 };
 
 struct ObjectConstants {

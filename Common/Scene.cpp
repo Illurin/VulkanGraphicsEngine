@@ -79,25 +79,46 @@ void Scene::SetAmbientLight(glm::vec3 strength) {
 	ambientLight = strength;
 }
 
-void Scene::SetDirectionalLight(glm::vec3 direction, glm::vec3 strength) {
-	directionalLight.direction = direction;
-	directionalLight.strength = strength;
+void Scene::SetDirectionalLight(int index, glm::vec3 direction, glm::vec3 strength) {
+	if (index >= NUM_DIRECTIONAL_LIGHT) {
+		MessageBox(0, L"Directional light index out of size!", 0, 0);
+		return;
+	}
+
+	Light& light = lights[index];
+
+	light.direction = direction;
+	light.strength = strength;
 }
 
-void Scene::SetPointLight(glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd) {
-	pointLight.fallOffStart = fallOffStart;
-	pointLight.fallOffEnd = fallOffEnd;
-	pointLight.position = position;
-	pointLight.strength = strength;
+void Scene::SetPointLight(int index, glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd) {
+	if (index >= NUM_POINT_LIGHT) {
+		MessageBox(0, L"Point light index out of size!", 0, 0);
+		return;
+	}
+	
+	Light& light = lights[NUM_DIRECTIONAL_LIGHT + index];
+
+	light.fallOffStart = fallOffStart;
+	light.fallOffEnd = fallOffEnd;
+	light.position = position;
+	light.strength = strength;
 }
 
-void Scene::SetSpotLight(glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower) {
-	spotLight.direction = direction;
-	spotLight.position = position;
-	spotLight.strength = strength;
-	spotLight.fallOffStart = fallOffStart;
-	spotLight.fallOffEnd = fallOffEnd;
-	spotLight.spotPower = spotPower;
+void Scene::SetSpotLight(int index, glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower) {
+	if (index >= NUM_SPOT_LIGHT) {
+		MessageBox(0, L"Spot light index out of size!", 0, 0);
+		return;
+	}
+	
+	Light& light = lights[NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT + index];
+
+	light.direction = direction;
+	light.position = position;
+	light.strength = strength;
+	light.fallOffStart = fallOffStart;
+	light.fallOffEnd = fallOffEnd;
+	light.spotPower = spotPower;
 }
 
 void Scene::SetShadowMap(uint32_t width, uint32_t height, glm::vec3 lightDirection, float radius) {
@@ -165,9 +186,7 @@ void Scene::UpdatePassConstants() {
 	passConstants.viewMatrix = mainCamera->GetViewMatrix4x4();
 	passConstants.eyePos = glm::vec4(mainCamera->GetPosition3f(), 1.0f);
 	passConstants.shadowTransform = shadowMap.GetShadowTransform();
-	passConstants.lights[0] = directionalLight;
-	passConstants.lights[1] = pointLight;
-	passConstants.lights[2] = spotLight;
+	memcpy(passConstants.lights, lights, sizeof(lights));
 	passConstants.ambientLight = glm::vec4(ambientLight, 1.0f);
 	frameResources->passCB[0]->CopyData(&vkInfo->device, 0, 1, &passConstants);
 }
@@ -486,24 +505,22 @@ void Scene::SetupDescriptors() {
 		descSetWrites[2].setDstSet(material.second.descSet);
 		descSetWrites[2].setPImageInfo(&descriptorDiffuseInfo);
 
-		int updateCount = 3;
+		descSetWrites[3].setDescriptorCount(1);
+		descSetWrites[3].setDescriptorType(vk::DescriptorType::eSampledImage);
+		descSetWrites[3].setDstArrayElement(0);
+		descSetWrites[3].setDstBinding(3);
+		descSetWrites[3].setDstSet(material.second.descSet);
+		descSetWrites[3].setPImageInfo(&descriptorDiffuseInfo);
 
 		if (material.second.shaderModel == ShaderModel::normalMap) {
 			auto descriptorNormalInfo = vk::DescriptorImageInfo()
 				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
 				.setImageView(material.second.normal->GetImageView(&vkInfo->device));
 		
-			descSetWrites[3].setDescriptorCount(1);
-			descSetWrites[3].setDescriptorType(vk::DescriptorType::eSampledImage);
-			descSetWrites[3].setDstArrayElement(0);
-			descSetWrites[3].setDstBinding(3);
-			descSetWrites[3].setDstSet(material.second.descSet);
 			descSetWrites[3].setPImageInfo(&descriptorNormalInfo);
-
-			updateCount++;
 		}
 
-		vkInfo->device.updateDescriptorSets(updateCount, descSetWrites, 0, 0);
+		vkInfo->device.updateDescriptorSets(4, descSetWrites, 0, 0);
 
 		matCBIndex++;
 	}
