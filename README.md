@@ -5,7 +5,9 @@
 
 ## 重构后的代码框架
 
-更新日志：封装了独立的RenderEngine，并完成了一部分渲染结构的转移。增加了简单的DeferredShading的封装，增加了法线图的支持
+更新日志：封装了独立的RenderEngine，并完成了一部分渲染结构的转移。增加了简单的DeferredShading的封装，增加了法线图的支持。
+
+HLSL源码现已全部添加至项目中以供阅读修改。
 
 图片库：WIC和STBImage，封装了基于WIC的立方体图
 
@@ -113,11 +115,32 @@ scene.SetShadowMap(width, height, lightDirection, radius);
 
 ## 延迟渲染简要说明
 
-默认场景中的GameObject物体，普通模型都会使用延迟渲染绘制，蒙皮动画，天空盒粒子效果等都采用前向渲染。目前仅支持3光源单阴影，后续可能会添加多光源。
+默认场景中的GameObject物体，普通模型都会使用延迟渲染绘制，蒙皮动画，天空盒粒子效果等都采用前向渲染。
 
 延迟渲染现已支持法线贴图，原来的前向渲染管线保留。
 
 延迟渲染将会用于后续添加体积光等特效。
+
+设置多光源：
+```
+void SetDirectionalLight(int index, glm::vec3 direction, glm::vec3 strength);
+void SetPointLight(int index, glm::vec3 position, glm::vec3 strength, float fallOffStart, float fallOffEnd);
+void SetSpotLight(int index, glm::vec3 position, glm::vec3 direction, glm::vec3 strength, float fallOffStart, float fallOffEnd, float spotPower);
+```
+
+修改最大光源数量：
+```
+//vkUtil.h
+#define NUM_DIRECTIONAL_LIGHT 1
+#define NUM_POINT_LIGHT 10
+#define NUM_SPOT_LIGHT 1
+```
+```
+//Common.hlsl
+#define NUM_DIRECTIONAL_LIGHT 1
+#define NUM_POINT_LIGHT 10
+#define NUM_SPOT_LIGHT 1
+```
 
 ## 骨骼蒙皮动画
 ```
