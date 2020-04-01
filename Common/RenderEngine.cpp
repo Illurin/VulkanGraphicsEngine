@@ -192,7 +192,7 @@ void RenderEngine::PrepareDeferredShading() {
 	//render target
 	attachments[0].setFormat(vkInfo->format);
 	attachments[0].setInitialLayout(vk::ImageLayout::eUndefined);
-	attachments[0].setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+	attachments[0].setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
 	attachments[0].setLoadOp(vk::AttachmentLoadOp::eClear);
 	attachments[0].setStoreOp(vk::AttachmentStoreOp::eStore);
 	attachments[0].setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
@@ -570,7 +570,24 @@ void RenderEngine::PreparePipeline() {
 			.setRenderPass(deferredShading.renderPass)
 			.setPInputAssemblyState(&iaInfo)
 			.setPVertexInputState(&viInfo);
-		vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, 0, &deferredShading.outputPipeline);
+
+		auto shaderModelSME = vk::SpecializationMapEntry()
+			.setConstantID(0)
+			.setOffset(0)
+			.setSize(sizeof(int));
+
+		deferredShading.outputPipeline.resize((int)ShaderModel::shaderModelCount);
+		for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+			auto shaderModelSI = vk::SpecializationInfo()
+				.setDataSize(sizeof(int))
+				.setMapEntryCount(1)
+				.setPMapEntries(&shaderModelSME)
+				.setPData(&i);
+
+			pipelineShaderInfo[1].setPSpecializationInfo(&shaderModelSI);
+
+			vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, 0, &deferredShading.outputPipeline[i]);
+		}
 
 		pipelineShaderInfo[0] = vk::PipelineShaderStageCreateInfo()
 			.setPName("main")
@@ -585,6 +602,8 @@ void RenderEngine::PreparePipeline() {
 		iaInfo = vk::PipelineInputAssemblyStateCreateInfo()
 			.setTopology(vk::PrimitiveTopology::eTriangleStrip)
 			.setPrimitiveRestartEnable(VK_FALSE);
+
+		viInfo = vk::PipelineVertexInputStateCreateInfo();
 
 		cbInfo = vk::PipelineColorBlendStateCreateInfo()
 			.setLogicOpEnable(VK_FALSE)

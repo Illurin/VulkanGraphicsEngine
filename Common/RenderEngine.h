@@ -1,5 +1,6 @@
 #pragma once
 #include "vkUtil.h"
+#include "Component.h"
 
 class RenderEngine {
 public:
@@ -20,10 +21,12 @@ public:
 		if (useDeferredShading) {
 			vkInfo->device.destroy(deferredShading.framebuffer);
 			vkInfo->device.destroy(deferredShading.renderPass);
-			vkInfo->device.destroy(deferredShading.outputPipeline);
 			vkInfo->device.destroy(deferredShading.processingPipeline);
 			vkInfo->device.destroy(deferredShading.pipelineLayout);
 			vkInfo->device.destroy(gbuffer.descSetLayout);
+			for (auto pipeline : deferredShading.outputPipeline) {
+				vkInfo->device.destroy(pipeline);
+			}
 		}
 	}
 
@@ -64,7 +67,7 @@ public:
 		vk::Framebuffer framebuffer;
 		vk::RenderPass renderPass;
 		vk::PipelineLayout pipelineLayout;
-		vk::Pipeline outputPipeline;
+		std::vector<vk::Pipeline> outputPipeline;
 		vk::Pipeline processingPipeline;
 	}deferredShading;
 

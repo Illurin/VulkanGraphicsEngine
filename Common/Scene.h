@@ -1,7 +1,6 @@
 #pragma once
 #include "GeometryGenerator.h"
 #include "SkinnedModel.h"
-#include "Component.h"
 #include "SkinnedData.h"
 #include "FrameResource.h"
 #include "ShadowMap.h"

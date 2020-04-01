@@ -1101,24 +1101,15 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 
 	renderEngine.BeginDeferredShading(cmd);
 
-	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.outputPipeline);
-
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
-
 	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
 
-	for (auto& meshRenderer : meshRenderers) {
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer.gameObject->descSet, 0, 0);
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer.gameObject->material->descSet, 0, 0);
-		cmd.drawIndexed(meshRenderer.indices.size(), 1, meshRenderer.startIndexLocation, meshRenderer.baseVertexLocation, 1);
-	}
-	if (skinnedModelInst.size() > 0) {
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["skinnedShadow"]);
-		cmd.bindVertexBuffers(0, 1, &skinnedVertexBuffer->GetBuffer(), offsets);
-		for (auto& skinnedMeshRenderer : skinnedMeshRenderers) {
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &skinnedMeshRenderer.gameObject->descSet, 0, 0);
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 4, 1, &skinnedModelInst[skinnedMeshRenderer.skinnedModelIndex].descSet, 0, 0);
-			cmd.drawIndexed(skinnedMeshRenderer.indices.size(), 1, skinnedMeshRenderer.startIndexLocation, skinnedMeshRenderer.baseVertexLocation, 1);
+	for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, renderEngine.deferredShading.outputPipeline[i]);
+		for (auto& meshRenderer : shaderModel[i]) {
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer->gameObject->descSet, 0, 0);
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer->gameObject->material->descSet, 0, 0);
+			cmd.drawIndexed(meshRenderer->indices.size(), 1, meshRenderer->startIndexLocation, meshRenderer->baseVertexLocation, 1);
 		}
 	}
 
@@ -1131,22 +1122,11 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 
 	cmd.endRenderPass();
 
-	//Begin render pass
 	renderEngine.BeginForwardShading(cmd);
 
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 2, 1, &scenePassDesc, 0, 0);
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 3, 1, &drawShadowDesc, 0, 0);
 
-	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
-
-	/*for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, meshPipeline[i]);
-		for (auto& meshRenderer : shaderModel[i]) {
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 0, 1, &meshRenderer->gameObject->descSet, 0, 0);
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["scene"], 1, 1, &meshRenderer->gameObject->material->descSet, 0, 0);
-			cmd.drawIndexed(meshRenderer->indices.size(), 1, meshRenderer->startIndexLocation, meshRenderer->baseVertexLocation, 1);
-		}
-	}
 	if (skinnedModelInst.size() > 0) {
 		cmd.bindVertexBuffers(0, 1, &skinnedVertexBuffer->GetBuffer(), offsets);
 		for (int i = 0; i < (int)ShaderModel::shaderModelCount; i++) {
@@ -1158,7 +1138,7 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 				cmd.drawIndexed(skinnedMeshRenderer->indices.size(), 1, skinnedMeshRenderer->startIndexLocation, skinnedMeshRenderer->baseVertexLocation, 1);
 			}
 		}
-	}*/
+	}
 
 	//»æÖÆÌì¿ÕºÐ
 	cmd.bindVertexBuffers(0, 1, &vertexBuffer->GetBuffer(), offsets);
