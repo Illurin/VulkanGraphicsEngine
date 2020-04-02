@@ -1,11 +1,11 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-![效果图](Information/演示图片3.png)
+![效果图](Information/演示图片5.png)
 
 ## 重构后的代码框架
 
-更新日志：封装了独立的RenderEngine，并完成了一部分渲染结构的转移。增加了简单的DeferredShading的封装，增加了法线图的支持。
+更新日志：封装了独立的RenderEngine，并完成了一部分渲染结构的转移。增加了简单的DeferredShading的封装，增加了法线图的支持。增加环境图漫反射
 
 HLSL源码现已全部添加至项目中以供阅读修改。
 
