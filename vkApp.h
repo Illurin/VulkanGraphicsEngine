@@ -19,7 +19,7 @@ private:
 
 	//Global variable
 	Camera mainCamera;
-	float deltaTime = 0.01f;
+	float deltaTime = 0.05f;
 
 	struct {
 		float position[3] = { 0.0f, 0.0f, 0.0f };

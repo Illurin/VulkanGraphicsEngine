@@ -11,6 +11,9 @@ struct PixelIn {
 	float2 texCoord;
 };
 
+[vk::binding(1, 2)] TextureCube cubeMap;
+[vk::binding(1, 2)] SamplerState cubeMapSampler;
+
 float4 main(PixelIn input) : SV_TARGET{
 	//从InputAttachment中读出所有数据
 	float4 diffuse = inDiffuseAlbedo.SubpassLoad();
@@ -24,8 +27,8 @@ float4 main(PixelIn input) : SV_TARGET{
 	float3 toEye = normalize(eyePos.xyz - posW);
 
 	//整合材质
-	const float shiniess = 1.0f - roughness;
-	Material mat = { float4(1.0f, 1.0f, 1.0f, 1.0f), fresnelR0, shiniess };
+	const float shininess = 1.0f - roughness;
+	Material mat = { float4(1.0f, 1.0f, 1.0f, 1.0f), fresnelR0, shininess };
 
 	//计算出阴影因子
 	float shadowFactor = CalcShadowFactor(shadowPos);
@@ -51,9 +54,14 @@ float4 main(PixelIn input) : SV_TARGET{
 
 	lightingResult *= shadowFactor;
 
-	//计算出最终的颜色结果
 	float4 litColor = diffuse * (ambientLight + float4(lightingResult, 1.0f));
-	litColor.a = 1.0f;
 
+	//计算来自环境贴图的镜面反射
+	float3 r = reflect(-toEye, normal);
+	float4 reflectionColor = cubeMap.Sample(cubeMapSampler, r);
+	float3 fresnelFactor = SchlickFresnel(fresnelR0, normal, r);
+	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
+
+	litColor.a = 1.0f;
 	return litColor;
 }

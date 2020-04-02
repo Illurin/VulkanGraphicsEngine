@@ -387,16 +387,16 @@ void VkApp::Start() {
 	brick_mat.normal = textures[4].get();
 	brick_mat.shaderModel = ShaderModel::normalMap;
 	brick_mat.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-	brick_mat.fresnelR0 = glm::vec3(0.9f, 0.9f, 0.9f);
-	brick_mat.roughness = 0.01f;
+	brick_mat.fresnelR0 = glm::vec3(0.3f, 0.3f, 0.3f);
+	brick_mat.roughness = 0.9f;
 	brick_mat.matTransform = glm::mat4(1.0f);
 
 	Material sphere_mat;
 	sphere_mat.name = "sphere";
-	sphere_mat.diffuse = textures[1].get();
+	sphere_mat.diffuse = textures[0].get();
 	sphere_mat.diffuseAlbedo = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-	sphere_mat.fresnelR0 = glm::vec3(0.05f, 0.05f, 0.05f);
-	sphere_mat.roughness = 0.8f;
+	sphere_mat.fresnelR0 = glm::vec3(0.9f, 0.9f, 0.9f);
+	sphere_mat.roughness = 0.3f;
 	sphere_mat.matTransform = glm::mat4(1.0f);
 
 	//将材质添加进场景中
@@ -561,6 +561,7 @@ void VkApp::OnGUI() {
 	if (ImGui::Button("Particle System Switch", ImVec2(200, 30)))
 		particleSystemEnabled = !particleSystemEnabled;
 
+	ImGui::SliderFloat("delta time", &deltaTime, 0.01f, 0.05f);
 	ImGui::SliderFloat3("light position", lightController.position, -10.0f, 10.0f);
 	ImGui::SliderFloat3("light color", lightController.color, 0.0f, 1.0f);
 	ImGui::SliderFloat("light fall off start", &lightController.fallOffStart, 0.0f, 3.0f);
@@ -652,7 +653,7 @@ void VkApp::Update() {
 
 	/*更新摄像机*/
 	float rotateSpeed = glm::pi<float>() * 0.007f;
-	float moveSpeed = 0.05f;
+	float moveSpeed = 0.3f;
 
 	float upMove = (vkInfo.input.GetKey(DIK_UP) ? 1.0f : 0.0f) - (vkInfo.input.GetKey(DIK_DOWN) ? 1.0f : 0.0f);
 	float rightMove = (vkInfo.input.GetKey(DIK_RIGHT) ? 1.0f : 0.0f) - (vkInfo.input.GetKey(DIK_LEFT) ? 1.0f : 0.0f);

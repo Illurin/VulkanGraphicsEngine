@@ -364,19 +364,21 @@ void Scene::SetupDescriptors() {
 	//创建描述符池
 	uint32_t postprocessingDescCount = bloom ? bloom->GetRequiredDescCount() : 0;
 
-	vk::DescriptorPoolSize typeCount[4];
+	vk::DescriptorPoolSize typeCount[5];
 	typeCount[0].setType(vk::DescriptorType::eUniformBuffer);
 	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0));
 	typeCount[1].setType(vk::DescriptorType::eSampledImage);
 	typeCount[1].setDescriptorCount(matCount * 2 + 2 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 	typeCount[2].setType(vk::DescriptorType::eSampler);
 	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
-	typeCount[3].setType(vk::DescriptorType::eInputAttachment);
-	typeCount[3].setDescriptorCount(5);
+	typeCount[3].setType(vk::DescriptorType::eCombinedImageSampler);
+	typeCount[3].setDescriptorCount(passCount);
+	typeCount[4].setType(vk::DescriptorType::eInputAttachment);
+	typeCount[4].setDescriptorCount(5);
 
 	auto descriptorPoolInfo = vk::DescriptorPoolCreateInfo()
 		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount + 1)
-		.setPoolSizeCount(4)
+		.setPoolSizeCount(5)
 		.setPPoolSizes(typeCount);
 	vkInfo->device.createDescriptorPool(&descriptorPoolInfo, 0, &vkInfo->descPool);
 
@@ -521,25 +523,38 @@ void Scene::SetupDescriptors() {
 		}
 
 		vkInfo->device.updateDescriptorSets(4, descSetWrites, 0, 0);
-
+		
 		matCBIndex++;
 	}
 
+	//场景的Pass
 	{
 		auto descriptrorPassCBInfo = vk::DescriptorBufferInfo()
 			.setBuffer(frameResources->passCB[0]->GetBuffer())
 			.setOffset(0)
 			.setRange(sizeof(PassConstants));
 
-		vk::WriteDescriptorSet descSetWrites[1];
+		auto descriptrorCubemapInfo = vk::DescriptorImageInfo()
+			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+			.setImageView(skybox.image.GetImageView(&vkInfo->device))
+			.setSampler(repeatSampler);
+
+		vk::WriteDescriptorSet descSetWrites[2];
 		descSetWrites[0].setDescriptorCount(1);
 		descSetWrites[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
 		descSetWrites[0].setDstArrayElement(0);
 		descSetWrites[0].setDstBinding(0);
 		descSetWrites[0].setDstSet(scenePassDesc);
 		descSetWrites[0].setPBufferInfo(&descriptrorPassCBInfo);
-		vkInfo->device.updateDescriptorSets(1, descSetWrites, 0, 0);
+		descSetWrites[1].setDescriptorCount(1);
+		descSetWrites[1].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+		descSetWrites[1].setDstArrayElement(0);
+		descSetWrites[1].setDstBinding(1);
+		descSetWrites[1].setDstSet(scenePassDesc);
+		descSetWrites[1].setPImageInfo(&descriptrorCubemapInfo);
+		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
 	}
+	//阴影的Pass
 	{
 		auto descriptrorPassCBInfo = vk::DescriptorBufferInfo()
 			.setBuffer(frameResources->passCB[1]->GetBuffer())

@@ -45,15 +45,21 @@ void RenderEngine::PrepareResource() {
 		textureBinding, materialCBBinding, samplerBinding, normalMapBinding
 	};
 
-	//第三个管线布局：Pass常量
+	//第三个管线布局：Pass常量和环境立方体图
 	auto passCBBinding = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
 		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment);
 
+	auto ambientCubemap = vk::DescriptorSetLayoutBinding()
+		.setBinding(1)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
 	vk::DescriptorSetLayoutBinding layoutBindingPass[] = {
-		passCBBinding
+		passCBBinding, ambientCubemap
 	};
 
 	//第四个管线布局：比较采样器和阴影贴图
@@ -94,7 +100,7 @@ void RenderEngine::PrepareResource() {
 	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_material, 0, &descSetLayout[1]);
 
 	auto descLayoutInfo_pass = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(1)
+		.setBindingCount(2)
 		.setPBindings(layoutBindingPass);
 	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_pass, 0, &descSetLayout[2]);
 

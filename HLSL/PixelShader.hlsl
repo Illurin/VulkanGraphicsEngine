@@ -28,6 +28,9 @@ Texture2D tex;
 [vk::binding(3, 1)]
 Texture2D normalMap;
 
+[vk::binding(1, 2)] TextureCube cubeMap;
+[vk::binding(1, 2)] SamplerState cubeMapSampler;
+
 float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, float3 tangentW) {
 	//映射法向量从[0,1]至[-1,1]
 	float3 normalT = 2.0f * normalMapSample - 1.0f;
@@ -40,7 +43,10 @@ float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, floa
 	float3x3 TBN = float3x3(T, B, N);
 
 	//将法向量从切线空间变换至世界空间
-	return mul(normalT, TBN);
+	float3 normal = mul(normalT, TBN);
+	normal.z = -normal.z;
+
+	return normal;
 }
 
 float4 main(PixelIn input) : SV_TARGET
@@ -62,8 +68,8 @@ float4 main(PixelIn input) : SV_TARGET
 	float4 diffuse = sampleColor * diffuseAlbedo;
 
 	//整合材质
-	const float shiniess = 1.0f - roughness;
-	Material mat = { diffuseAlbedo, fresnelR0, shiniess };
+	const float shininess = 1.0f - roughness;
+	Material mat = { diffuseAlbedo, fresnelR0, shininess };
 
 	//计算出阴影因子
 	float shadowFactor = CalcShadowFactor(input.shadowPos);
@@ -73,9 +79,14 @@ float4 main(PixelIn input) : SV_TARGET
 		+ ComputePointLight(lights[NUM_DIRECTIONAL_LIGHT], mat, input.posW, input.normal, toEye)
 		+ ComputeSpotLight(lights[NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT], mat, input.posW, input.normal, toEye));
 
-	//计算出最终的颜色结果
 	float4 litColor = diffuse * (ambientLight + float4(lightingResult, 1.0f));
-	litColor.a = sampleColor.a;
 
+	//计算来自环境贴图的镜面反射
+	float3 r = reflect(-toEye, input.normal);
+	float4 reflectionColor = cubeMap.Sample(cubeMapSampler, r);
+	float3 fresnelFactor = SchlickFresnel(fresnelR0, input.normal, r);
+	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
+	
+	litColor.a = sampleColor.a;
 	return litColor;
 }

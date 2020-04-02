@@ -38,7 +38,10 @@ float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, floa
 	float3x3 TBN = float3x3(T, B, N);
 
 	//将法向量从切线空间变换至世界空间
-	return mul(normalT, TBN);
+	float3 normal = mul(normalT, TBN);
+	normal.z = -normal.z;
+
+	return normal;
 }
 
 void main(PixelIn input,
