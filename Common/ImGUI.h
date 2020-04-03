@@ -155,13 +155,14 @@ public:
 		style.Colors[ImGuiCol_MenuBarBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
 		style.Colors[ImGuiCol_Header] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
 		style.Colors[ImGuiCol_CheckMark] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+		
 		// Dimensions
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(width, height);
 		io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 	}
 
-	void InitResource(vk::RenderPass renderPass) {
+	void InitResource(vk::RenderPass renderPass, uint32_t subpassIndex) {
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Create font texture
@@ -468,7 +469,22 @@ public:
 			.setPVertexAttributeDescriptions(vertexInputAttributes.data());
 
 		//Create pipeline state
-		pipeline = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, pipelineLayout, pipelineShaderInfo, renderPass);
+		auto pipelineInfo = vk::GraphicsPipelineCreateInfo()
+			.setLayout(pipelineLayout)
+			.setPColorBlendState(&cbInfo)
+			.setPDepthStencilState(&dsInfo)
+			.setPDynamicState(&dynamicInfo)
+			.setPMultisampleState(&msInfo)
+			.setPRasterizationState(&rsInfo)
+			.setStageCount(pipelineShaderInfo.size())
+			.setPStages(pipelineShaderInfo.data())
+			.setPViewportState(&vpInfo)
+			.setRenderPass(renderPass)
+			.setSubpass(subpassIndex)
+			.setPInputAssemblyState(&iaInfo)
+			.setPVertexInputState(&viInfo);
+		vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, 0, &pipeline);
+		
 		vkInfo->device.destroyShaderModule(vsModule);
 		vkInfo->device.destroyShaderModule(psModule);
 	}

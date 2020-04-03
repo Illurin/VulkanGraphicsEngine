@@ -2,7 +2,7 @@
 
 void RenderEngine::PrepareResource() {
 	/*Create attachments*/
-	renderTarget = CreateAttachment(vkInfo->device, vkInfo->gpu.getMemoryProperties(), vkInfo->format, vk::ImageAspectFlagBits::eColor, vkInfo->width, vkInfo->height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
+	renderTarget = CreateAttachment(vkInfo->device, vkInfo->gpu.getMemoryProperties(), vk::Format::eR16G16B16A16Sfloat, vk::ImageAspectFlagBits::eColor, vkInfo->width, vkInfo->height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
 	depthTarget = CreateAttachment(vkInfo->device, vkInfo->gpu.getMemoryProperties(), vk::Format::eD16Unorm, vk::ImageAspectFlagBits::eDepth, vkInfo->width, vkInfo->height, vk::ImageUsageFlagBits::eDepthStencilAttachment);
 
 	//第一个管线布局：世界矩阵
@@ -120,7 +120,7 @@ void RenderEngine::PrepareForwardShading() {
 
 	/*Create render pass*/
 	auto colorAttachment = vk::AttachmentDescription()
-		.setFormat(vkInfo->format)
+		.setFormat(vk::Format::eR16G16B16A16Sfloat)
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eLoad)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -196,7 +196,7 @@ void RenderEngine::PrepareDeferredShading() {
 	std::vector<vk::AttachmentDescription> attachments(7);
 
 	//render target
-	attachments[0].setFormat(vkInfo->format);
+	attachments[0].setFormat(vk::Format::eR16G16B16A16Sfloat);
 	attachments[0].setInitialLayout(vk::ImageLayout::eUndefined);
 	attachments[0].setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
 	attachments[0].setLoadOp(vk::AttachmentLoadOp::eClear);
@@ -366,30 +366,30 @@ void RenderEngine::PrepareDeferredShading() {
 void RenderEngine::PrepareDescriptor() {
 	if (useDeferredShading) {
 		/*Prepare descriptor set layout*/
-		std::array<vk::DescriptorSetLayoutBinding, 5> layoutBinding;
-		layoutBinding[0].setBinding(0);
-		layoutBinding[0].setDescriptorCount(1);
-		layoutBinding[0].setDescriptorType(vk::DescriptorType::eInputAttachment);
-		layoutBinding[0].setStageFlags(vk::ShaderStageFlagBits::eFragment);
-		layoutBinding[1].setBinding(1);
-		layoutBinding[1].setDescriptorCount(1);
-		layoutBinding[1].setDescriptorType(vk::DescriptorType::eInputAttachment);
-		layoutBinding[1].setStageFlags(vk::ShaderStageFlagBits::eFragment);
-		layoutBinding[2].setBinding(2);
-		layoutBinding[2].setDescriptorCount(1);
-		layoutBinding[2].setDescriptorType(vk::DescriptorType::eInputAttachment);
-		layoutBinding[2].setStageFlags(vk::ShaderStageFlagBits::eFragment);
-		layoutBinding[3].setBinding(3);
-		layoutBinding[3].setDescriptorCount(1);
-		layoutBinding[3].setDescriptorType(vk::DescriptorType::eInputAttachment);
-		layoutBinding[3].setStageFlags(vk::ShaderStageFlagBits::eFragment);
-		layoutBinding[4].setBinding(4);
-		layoutBinding[4].setDescriptorCount(1);
-		layoutBinding[4].setDescriptorType(vk::DescriptorType::eInputAttachment);
-		layoutBinding[4].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		std::array<vk::DescriptorSetLayoutBinding, 5> layoutBinding_inputAttach;
+		layoutBinding_inputAttach[0].setBinding(0);
+		layoutBinding_inputAttach[0].setDescriptorCount(1);
+		layoutBinding_inputAttach[0].setDescriptorType(vk::DescriptorType::eInputAttachment);
+		layoutBinding_inputAttach[0].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		layoutBinding_inputAttach[1].setBinding(1);
+		layoutBinding_inputAttach[1].setDescriptorCount(1);
+		layoutBinding_inputAttach[1].setDescriptorType(vk::DescriptorType::eInputAttachment);
+		layoutBinding_inputAttach[1].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		layoutBinding_inputAttach[2].setBinding(2);
+		layoutBinding_inputAttach[2].setDescriptorCount(1);
+		layoutBinding_inputAttach[2].setDescriptorType(vk::DescriptorType::eInputAttachment);
+		layoutBinding_inputAttach[2].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		layoutBinding_inputAttach[3].setBinding(3);
+		layoutBinding_inputAttach[3].setDescriptorCount(1);
+		layoutBinding_inputAttach[3].setDescriptorType(vk::DescriptorType::eInputAttachment);
+		layoutBinding_inputAttach[3].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		layoutBinding_inputAttach[4].setBinding(4);
+		layoutBinding_inputAttach[4].setDescriptorCount(1);
+		layoutBinding_inputAttach[4].setDescriptorType(vk::DescriptorType::eInputAttachment);
+		layoutBinding_inputAttach[4].setStageFlags(vk::ShaderStageFlagBits::eFragment);
 		auto descSetLayoutInfo = vk::DescriptorSetLayoutCreateInfo()
-			.setBindingCount(layoutBinding.size())
-			.setPBindings(layoutBinding.data());
+			.setBindingCount(layoutBinding_inputAttach.size())
+			.setPBindings(layoutBinding_inputAttach.data());
 		vkInfo->device.createDescriptorSetLayout(&descSetLayoutInfo, 0, &gbuffer.descSetLayout);
 
 		/*Allocate descriptor set*/

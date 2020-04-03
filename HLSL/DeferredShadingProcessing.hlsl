@@ -1,10 +1,10 @@
 #include "LightingUtil.hlsl"
 
-[vk::input_attachment_index(0)][vk::binding(0, 1)] SubpassInput inDiffuseAlbedo;
-[vk::input_attachment_index(1)][vk::binding(1, 1)] SubpassInput inNormal;
-[vk::input_attachment_index(2)][vk::binding(2, 1)] SubpassInput inMaterialProperties;
-[vk::input_attachment_index(3)][vk::binding(3, 1)] SubpassInput inPosition;
-[vk::input_attachment_index(4)][vk::binding(4, 1)] SubpassInput inShadowPos;
+[vk::input_attachment_index(0)] [vk::binding(0, 1)] SubpassInput inDiffuseAlbedo;
+[vk::input_attachment_index(1)] [vk::binding(1, 1)] SubpassInput inNormal;
+[vk::input_attachment_index(2)] [vk::binding(2, 1)] SubpassInput inMaterialProperties;
+[vk::input_attachment_index(3)] [vk::binding(3, 1)] SubpassInput inPosition;
+[vk::input_attachment_index(4)] [vk::binding(4, 1)] SubpassInput inShadowPos;
 
 struct PixelIn {
 	float4 position : SV_POSITION;

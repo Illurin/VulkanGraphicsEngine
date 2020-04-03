@@ -139,14 +139,21 @@ void Scene::SetSkybox(Texture image, float radius, uint32_t subdivision) {
 	skybox.radius = radius;
 }
 
+void Scene::SetHDRProperty(float exposure) {
+	bloom->SetHDRProperties(exposure);
+}
+
 void Scene::SetBloomPostProcessing(PostProcessingProfile::Bloom& profile) {
 	bloom = std::make_unique<PostProcessing::Bloom>(profile);
+	bloom->vkInfo = vkInfo;
+	bloom->PrepareRenderPass();
+	bloom->PrepareFramebuffers();
 }
 
 void Scene::PrepareImGUI() {
 	imgui = new ImGUI(vkInfo);
 	imgui->Init(vkInfo->width, vkInfo->height);
-	imgui->InitResource(renderEngine.forwardShading.renderPass);
+	imgui->InitResource(bloom->GetRenderPass(), 0);
 }
 
 void Scene::UpdateImGUI(float deltaTime) {
@@ -332,29 +339,6 @@ void Scene::SetupDescriptors() {
 			.setUnnormalizedCoordinates(VK_FALSE);
 		vkInfo->device.createSampler(&samplerInfo, 0, &comparisonSampler);
 	}
-	
-	//后处理效果的管线布局：采样器和源贴图
-	auto finalSamplerBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampler)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	auto finalImageBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(1)
-		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampledImage)
-		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-	vk::DescriptorSetLayoutBinding layoutBindingFinal[] = {
-		finalSamplerBinding, finalImageBinding
-	};
-
-	//为finalPass提供管线布局
-	auto descLayoutInfo_final = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(2)
-		.setPBindings(layoutBindingFinal);
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo_final, 0, &vkInfo->finalPassLayout);
 
 	//为描述符的分配提供布局
 	uint32_t objCount = gameObjects.size();
@@ -362,22 +346,22 @@ void Scene::SetupDescriptors() {
 	uint32_t descCount = objCount + matCount + passCount + skinnedModelInst.size() + 1;
 
 	//创建描述符池
-	uint32_t postprocessingDescCount = bloom ? bloom->GetRequiredDescCount() : 0;
+	uint32_t postprocessingDescCount = bloom ? 4 : 0;
 
 	vk::DescriptorPoolSize typeCount[5];
 	typeCount[0].setType(vk::DescriptorType::eUniformBuffer);
-	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0));
+	typeCount[0].setDescriptorCount(matCount + objCount + passCount + skinnedModelInst.size() + (skybox.use ? 1 : 0) + 1);
 	typeCount[1].setType(vk::DescriptorType::eSampledImage);
-	typeCount[1].setDescriptorCount(matCount * 2 + 2 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
+	typeCount[1].setDescriptorCount(matCount * 2 + 2 + 2 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 	typeCount[2].setType(vk::DescriptorType::eSampler);
 	typeCount[2].setDescriptorCount(matCount + 1 + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount);
 	typeCount[3].setType(vk::DescriptorType::eCombinedImageSampler);
-	typeCount[3].setDescriptorCount(passCount);
+	typeCount[3].setDescriptorCount(passCount + (bloom ? 5 : 0));
 	typeCount[4].setType(vk::DescriptorType::eInputAttachment);
 	typeCount[4].setDescriptorCount(5);
 
 	auto descriptorPoolInfo = vk::DescriptorPoolCreateInfo()
-		.setMaxSets(descCount + 1 + (skybox.use ? 1 : 0) + postprocessingDescCount + 1)
+		.setMaxSets(descCount + (skybox.use ? 1 : 0) + postprocessingDescCount + 1)
 		.setPoolSizeCount(5)
 		.setPPoolSizes(typeCount);
 	vkInfo->device.createDescriptorPool(&descriptorPoolInfo, 0, &vkInfo->descPool);
@@ -436,15 +420,6 @@ void Scene::SetupDescriptors() {
 			.setPSetLayouts(&renderEngine.descSetLayout[1]);
 		vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &skybox.descSet);
 	}
-
-	//为finalPass分配一个描述符
-	vkInfo->finalPassDescSets.resize(1);
-
-	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
-		.setDescriptorPool(vkInfo->descPool)
-		.setDescriptorSetCount(1)
-		.setPSetLayouts(&vkInfo->finalPassLayout);
-	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, vkInfo->finalPassDescSets.data());
 
 	//更新每一个描述符
 	uint32_t objCBIndex = 0;
@@ -625,7 +600,7 @@ void Scene::SetupDescriptors() {
 			.setImageView(skybox.image.GetImageView(&vkInfo->device))
 			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
-		vk::WriteDescriptorSet descSetWrites[2];
+		vk::WriteDescriptorSet descSetWrites[4];
 		descSetWrites[0].setDescriptorCount(1);
 		descSetWrites[0].setDescriptorType(vk::DescriptorType::eSampler);
 		descSetWrites[0].setDstArrayElement(0);
@@ -641,33 +616,8 @@ void Scene::SetupDescriptors() {
 		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
 	}
 
-	//初始化后处理
-	if (bloom) bloom->Init(vkInfo, renderEngine.renderTarget.imageView);
-
-	//更新FinalPass的描述符
-	{
-		auto descriptorSamplerInfo = vk::DescriptorImageInfo()
-			.setSampler(repeatSampler);
-		
-		auto descriptorImageInfo = vk::DescriptorImageInfo()
-			.setImageView((bloom) ? (bloom->GetImageView()) : (renderEngine.renderTarget.imageView))
-			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
-
-		vk::WriteDescriptorSet descSetWrites[2];
-		descSetWrites[0].setDescriptorCount(1);
-		descSetWrites[0].setDescriptorType(vk::DescriptorType::eSampler);
-		descSetWrites[0].setDstArrayElement(0);
-		descSetWrites[0].setDstBinding(0);
-		descSetWrites[0].setDstSet(vkInfo->finalPassDescSets[0]);
-		descSetWrites[0].setPImageInfo(&descriptorSamplerInfo);
-		descSetWrites[1].setDescriptorCount(1);
-		descSetWrites[1].setDescriptorType(vk::DescriptorType::eSampledImage);
-		descSetWrites[1].setDstArrayElement(0);
-		descSetWrites[1].setDstBinding(1);
-		descSetWrites[1].setDstSet(vkInfo->finalPassDescSets[0]);
-		descSetWrites[1].setPImageInfo(&descriptorImageInfo);
-		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
-	}
+	//后处理
+	bloom->PrepareDescriptorSets(renderEngine.renderTarget.imageView);
 
 	renderEngine.PrepareDescriptor();
 
@@ -950,55 +900,6 @@ void Scene::PreparePipeline() {
 	vkInfo->pipelines["skinnedShadow"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, skinnedviInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["scene"], pipelineShaderInfo, shadowMap.GetRenderPass());
 	vkInfo->device.destroyShaderModule(psModule);
 
-	//编译用于图像混合的着色器
-	vsModule = CreateShaderModule("Shaders\\bloomVS.spv", vkInfo->device);
-	psModule = CreateShaderModule("Shaders\\combine.spv", vkInfo->device);
-
-	pipelineShaderInfo[0] = vk::PipelineShaderStageCreateInfo()
-		.setPName("main")
-		.setModule(vsModule)
-		.setStage(vk::ShaderStageFlagBits::eVertex);
-	pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
-		.setPName("main")
-		.setModule(psModule)
-		.setStage(vk::ShaderStageFlagBits::eFragment);
-
-	//创建管线布局
-	auto combinePipelineLayoutInfo = vk::PipelineLayoutCreateInfo()
-		.setPushConstantRangeCount(0)
-		.setPPushConstantRanges(0)
-		.setSetLayoutCount(1)
-		.setPSetLayouts(&vkInfo->finalPassLayout);
-	vkInfo->device.createPipelineLayout(&combinePipelineLayoutInfo, 0, &vkInfo->pipelineLayout["final"]);
-
-	//创建用于图像混合的管线
-	attState.setBlendEnable(VK_TRUE);
-	attState.setColorBlendOp(vk::BlendOp::eAdd);
-	attState.setSrcColorBlendFactor(vk::BlendFactor::eOne);
-	attState.setDstColorBlendFactor(vk::BlendFactor::eOne);
-	attState.setAlphaBlendOp(vk::BlendOp::eAdd);
-	attState.setSrcAlphaBlendFactor(vk::BlendFactor::eZero);
-	attState.setDstAlphaBlendFactor(vk::BlendFactor::eOne);
-
-	cbInfo = vk::PipelineColorBlendStateCreateInfo()
-		.setLogicOpEnable(VK_FALSE)
-		.setAttachmentCount(1)
-		.setPAttachments(&attState)
-		.setLogicOp(vk::LogicOp::eNoOp);
-
-	iaInfo.setTopology(vk::PrimitiveTopology::eTriangleStrip);
-
-	viInfo = vk::PipelineVertexInputStateCreateInfo()
-		.setVertexBindingDescriptionCount(0)
-		.setPVertexBindingDescriptions(0)
-		.setVertexAttributeDescriptionCount(0)
-		.setPVertexAttributeDescriptions(0);
-
-	vkInfo->pipelines["final"] = CreateGraphicsPipeline(vkInfo->device, dynamicInfo, viInfo, iaInfo, rsInfo, cbInfo, vpInfo, dsInfo, msInfo, vkInfo->pipelineLayout["final"], pipelineShaderInfo, vkInfo->finalPass);
-
-	vkInfo->device.destroyShaderModule(vsModule);
-	vkInfo->device.destroyShaderModule(psModule);
-
 	//粒子的顶点输入装配属性
 	vk::VertexInputBindingDescription particleBinding;
 	std::vector<vk::VertexInputAttributeDescription> particleAttrib;
@@ -1092,6 +993,7 @@ void Scene::PreparePipeline() {
 	vkInfo->device.destroyShaderModule(gsModule);
 	vkInfo->device.destroyShaderModule(psModule);
 
+	bloom->PreparePipelines();
 	renderEngine.PreparePipeline();
 }
 
@@ -1199,41 +1101,13 @@ void Scene::DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer) {
 		particleSystem.DrawParticles(&cmd);
 	}
 
-	//绘制GUI
-	imgui->DrawFrame(cmd);
-
 	cmd.endRenderPass();
 
-	if (bloom) {
-		bloom->ExtractionBrightness(&cmd);
-		bloom->BlurH(&cmd);
-		bloom->BlurV(&cmd);
-	}
-
-	vk::ClearValue clearValue[2] = {
-		vk::ClearColorValue(std::array<float, 4>({0.0f, 0.0f, 0.0f, 0.0f})),
-		vk::ClearDepthStencilValue(1.0f, 0)
-	};
-	vk::RenderPassBeginInfo renderPassBeginInfo;
-	renderPassBeginInfo.setClearValueCount(1);
-	renderPassBeginInfo.setPClearValues(clearValue);
-	renderPassBeginInfo.setFramebuffer(vkInfo->finalFramebuffers[currentBuffer]);
-	renderPassBeginInfo.setRenderPass(vkInfo->finalPass);
-	renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)));
-	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
-	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vkInfo->pipelines["final"]);
-
 	//进行后处理
-	if (bloom) {
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &bloom->GetSourceDescriptor(), 0, 0);
-		cmd.draw(4, 1, 0, 0);
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &vkInfo->finalPassDescSets[0], 0, 0);
-		cmd.draw(4, 1, 0, 0);
-	}
-	else {
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vkInfo->pipelineLayout["final"], 0, 1, &vkInfo->finalPassDescSets[0], 0, 0);
-		cmd.draw(4, 1, 0, 0);
-	}
+	bloom->Begin(cmd, currentBuffer);
+
+	//绘制GUI
+	imgui->DrawFrame(cmd);
 
 	cmd.endRenderPass();
 }

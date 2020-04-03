@@ -10,7 +10,6 @@ public:
 private:
 	void Update();
 	void OnGUI();
-	void PrepareFinalPass();
 
 	Vulkan vkInfo;
 	Scene scene;
@@ -20,6 +19,8 @@ private:
 	//Global variable
 	Camera mainCamera;
 	float deltaTime = 0.05f;
+
+	float hdrExposure = 1.0f;
 
 	struct {
 		float position[3] = { 0.0f, 0.0f, 0.0f };

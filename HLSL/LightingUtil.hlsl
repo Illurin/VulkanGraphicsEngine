@@ -33,8 +33,6 @@ float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 t
 	float3 fresnelFactor = SchlickFresnel(mat.fresnelR0, halfVec, lightVec);
 	//计算出镜面反射值
 	float3 specAlbedo = fresnelFactor * roughnessFactor;
-	//线性缩小镜面反射的值(LDR)
-	specAlbedo = specAlbedo / (specAlbedo + 1.0f);
 	//漫反射 + 镜面反射 * 光强
 	return (mat.diffuseAlbedo.rgb + specAlbedo) * lightStrength;
 }

@@ -290,58 +290,8 @@ void VkApp::Initialize(uint32_t windowWidth, uint32_t windowHeight, HWND hWnd, H
 		MessageBox(0, L"Create fence failed!!!", 0, 0);
 	}
 
-	PrepareFinalPass();
-
 	if (!vkInfo.input.Init(hInstance, hWnd)) {
 		MessageBox(0, L"Init player input module failed!!!", 0, 0);
-	}
-}
-
-void VkApp::PrepareFinalPass() {
-	/*Create render pass*/
-	auto colorAttachment = vk::AttachmentDescription()
-		.setFormat(vkInfo.format)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eClear)
-		.setStoreOp(vk::AttachmentStoreOp::eStore)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
-
-	auto colorReference = vk::AttachmentReference()
-		.setAttachment(0)
-		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
-
-	auto subpass = vk::SubpassDescription()
-		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
-		.setColorAttachmentCount(1)
-		.setPColorAttachments(&colorReference)
-		.setPDepthStencilAttachment(0);
-
-	auto renderPassInfo = vk::RenderPassCreateInfo()
-		.setAttachmentCount(1)
-		.setPAttachments(&colorAttachment)
-		.setSubpassCount(1)
-		.setPSubpasses(&subpass);
-
-	vkInfo.device.createRenderPass(&renderPassInfo, 0, &vkInfo.finalPass);
-
-	/*Create frame buffer*/
-	vk::ImageView framebufferView;
-	auto framebufferInfo = vk::FramebufferCreateInfo()
-		.setRenderPass(vkInfo.finalPass)
-		.setAttachmentCount(1)
-		.setPAttachments(&framebufferView)
-		.setWidth(vkInfo.width)
-		.setHeight(vkInfo.height)
-		.setLayers(1);
-
-	vkInfo.finalFramebuffers.resize(vkInfo.frameCount);
-
-	for (size_t i = 0; i < vkInfo.frameCount; i++) {
-		framebufferView = vkInfo.swapchainImageViews[i];
-		vkInfo.device.createFramebuffer(&framebufferInfo, 0, &vkInfo.finalFramebuffers[i]);
 	}
 }
 
@@ -356,7 +306,7 @@ void VkApp::Start() {
 	scene.SetMainCamera(&mainCamera);
 
 	//创建一个点光
-	scene.SetPointLight(0, glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 10.0f);
+	scene.SetPointLight(0, glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(5.0f, 5.0f, 5.0f), 1.0f, 10.0f);
 
 	//利用Texture辅助库加载图片
 	std::vector<std::unique_ptr<Texture>> textures;
@@ -533,14 +483,12 @@ void VkApp::Start() {
 	subParticle.used = true;
 	scene.AddParticleSystem(scene.GetGameObject("flame"), scene.GetGameObject("smoke"), property, emitter, particleTexture, subParticle);
 
+	scene.SetupRenderEngine();
+
 	//设定后处理
 	PostProcessingProfile::Bloom bloomProfile;
-	bloomProfile.criticalValue = 0.5f;
-	bloomProfile.blurOffset = 0.003f;
-	bloomProfile.blurRadius = 3;
+	bloomProfile.criticalValue = 1.0f;
 	scene.SetBloomPostProcessing(bloomProfile);
-
-	scene.SetupRenderEngine();
 
 	//设定GUI
 	scene.PrepareImGUI();
@@ -556,7 +504,7 @@ void VkApp::OnGUI() {
 
 	ImGui::SetNextWindowSize(ImVec2(400, 200), 0);
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
-	ImGui::Begin("ImGUI Test");
+	ImGui::Begin("Scene properties");
 
 	if (ImGui::Button("Particle System Switch", ImVec2(200, 30)))
 		particleSystemEnabled = !particleSystemEnabled;
@@ -568,9 +516,19 @@ void VkApp::OnGUI() {
 	ImGui::SliderFloat("light fall off end", &lightController.fallOffEnd, 0.0f, 10.0f);
 
 	ImGui::End();
+
+	ImGui::SetNextWindowSize(ImVec2(400, 100), 0);
+	ImGui::Begin("Processing properties");
+
+	ImGui::SliderFloat("HDR exposure", &hdrExposure, 0.0f, 5.0f);
+
+	ImGui::End();
+
 	ImGui::Render();
 
 	recordCommand = true;
+
+	scene.SetHDRProperty(hdrExposure);
 
 	glm::vec3 position = glm::vec3(lightController.position[0], lightController.position[1], lightController.position[2]);
 	glm::vec3 color = glm::vec3(lightController.color[0], lightController.color[1], lightController.color[2]);

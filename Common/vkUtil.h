@@ -190,15 +190,8 @@ struct Vulkan {
 
 	std::unordered_map<std::string, vk::Pipeline> pipelines;
 	std::unordered_map<std::string, vk::PipelineLayout> pipelineLayout;
-
-	vk::RenderPass finalPass;
-
+	
 	vk::DescriptorPool descPool;
-
-	vk::DescriptorSetLayout finalPassLayout;
-	std::vector<vk::DescriptorSet> finalPassDescSets;
-
-	std::vector<vk::Framebuffer> finalFramebuffers;
 
 	std::vector<const char*> instanceExtensions;
 	std::vector<const char*> deviceExtensions;

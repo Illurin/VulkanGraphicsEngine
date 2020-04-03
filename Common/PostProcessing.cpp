@@ -1,175 +1,237 @@
 #include "PostProcessing.h"
 
+void PostProcessing::Bloom::SetHDRProperties(float exposure) {
+	PostProcessingProfile::HDR hdrProfile;
+	hdrProfile.exposure = exposure;
+
+	hdrProperties->CopyData(&vkInfo->device, 0, 1, &hdrProfile);
+}
+
 void PostProcessing::Bloom::PrepareRenderPass() {
-	auto colorAttachment = vk::AttachmentDescription()
-		.setFormat(vkInfo->format)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eClear)
-		.setStoreOp(vk::AttachmentStoreOp::eStore)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+	{
+		auto attachment = vk::AttachmentDescription()
+			.setFormat(vk::Format::eR16G16B16A16Sfloat)
+			.setSamples(vk::SampleCountFlagBits::e1)
+			.setLoadOp(vk::AttachmentLoadOp::eClear)
+			.setStoreOp(vk::AttachmentStoreOp::eStore)
+			.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+			.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+			.setInitialLayout(vk::ImageLayout::eUndefined)
+			.setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
-	auto colorReference = vk::AttachmentReference()
-		.setAttachment(0)
-		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+		vk::AttachmentReference colorReference;
+		colorReference.setAttachment(0);
+		colorReference.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
-	auto subpass = vk::SubpassDescription()
-		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
-		.setColorAttachmentCount(1)
-		.setPColorAttachments(&colorReference)
-		.setPDepthStencilAttachment(0);
+		auto subpassDescription = vk::SubpassDescription()
+			.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+			.setColorAttachmentCount(1)
+			.setPColorAttachments(&colorReference);
 
-	auto renderPassInfo = vk::RenderPassCreateInfo()
-		.setAttachmentCount(1)
-		.setPAttachments(&colorAttachment)
-		.setSubpassCount(1)
-		.setPSubpasses(&subpass);
+		auto renderPassInfo = vk::RenderPassCreateInfo()
+			.setAttachmentCount(1)
+			.setPAttachments(&attachment)
+			.setSubpassCount(1)
+			.setPSubpasses(&subpassDescription);
 
-	vkInfo->device.createRenderPass(&renderPassInfo, 0, &renderPass);
+		vkInfo->device.createRenderPass(&renderPassInfo, 0, &bloomRenderPass);
+	}
+	{
+		auto attachment = vk::AttachmentDescription()
+			.setFormat(vk::Format::eR8G8B8A8Unorm)
+			.setSamples(vk::SampleCountFlagBits::e1)
+			.setLoadOp(vk::AttachmentLoadOp::eClear)
+			.setStoreOp(vk::AttachmentStoreOp::eStore)
+			.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+			.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+			.setInitialLayout(vk::ImageLayout::eUndefined)
+			.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+
+		vk::AttachmentReference colorReference;
+		colorReference.setAttachment(0);
+		colorReference.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+		auto subpassDescription = vk::SubpassDescription()
+			.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+			.setColorAttachmentCount(1)
+			.setPColorAttachments(&colorReference);
+
+		auto renderPassInfo = vk::RenderPassCreateInfo()
+			.setAttachmentCount(1)
+			.setPAttachments(&attachment)
+			.setSubpassCount(1)
+			.setPSubpasses(&subpassDescription);
+
+		vkInfo->device.createRenderPass(&renderPassInfo, 0, &combineRenderPass);
+	}
 }
 
 void PostProcessing::Bloom::PrepareFramebuffers() {
-	auto imageInfo = vk::ImageCreateInfo()
-		.setArrayLayers(1)
-		.setExtent(vk::Extent3D(vkInfo->width, vkInfo->height, 1))
-		.setFormat(vkInfo->format)
-		.setImageType(vk::ImageType::e2D)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setMipLevels(1)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setTiling(vk::ImageTiling::eOptimal)
-		.setUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
-	vkInfo->device.createImage(&imageInfo, 0, &renderTarget0);
-	vkInfo->device.createImage(&imageInfo, 0, &renderTarget1);
+	renderTarget0 = CreateAttachment(vkInfo->device, vkInfo->gpu.getMemoryProperties(), vk::Format::eR16G16B16A16Sfloat, vk::ImageAspectFlagBits::eColor, vkInfo->width, vkInfo->height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment | vk::ImageUsageFlagBits::eSampled);
+	renderTarget1 = CreateAttachment(vkInfo->device, vkInfo->gpu.getMemoryProperties(), vk::Format::eR16G16B16A16Sfloat, vk::ImageAspectFlagBits::eColor, vkInfo->width, vkInfo->height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
 
-	{
-		vk::MemoryRequirements renderTargetReqs;
-		vkInfo->device.getImageMemoryRequirements(renderTarget0, &renderTargetReqs);
-
-		auto renderTargetMemAlloc = vk::MemoryAllocateInfo()
-			.setAllocationSize(renderTargetReqs.size);
-		MemoryTypeFromProperties(vkInfo->gpu.getMemoryProperties(), renderTargetReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal, renderTargetMemAlloc.memoryTypeIndex);
-		vkInfo->device.allocateMemory(&renderTargetMemAlloc, 0, &renderMemory0);
-
-		vkInfo->device.bindImageMemory(renderTarget0, renderMemory0, 0);
-	}
-	{
-		vk::MemoryRequirements renderTargetReqs;
-		vkInfo->device.getImageMemoryRequirements(renderTarget1, &renderTargetReqs);
-
-		auto renderTargetMemAlloc = vk::MemoryAllocateInfo()
-			.setAllocationSize(renderTargetReqs.size);
-		MemoryTypeFromProperties(vkInfo->gpu.getMemoryProperties(), renderTargetReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal, renderTargetMemAlloc.memoryTypeIndex);
-		vkInfo->device.allocateMemory(&renderTargetMemAlloc, 0, &renderMemory1);
-
-		vkInfo->device.bindImageMemory(renderTarget1, renderMemory1, 0);
-	}
-	auto renderTargetViewInfo = vk::ImageViewCreateInfo()
-		.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))
-		.setFormat(vkInfo->format)
-		.setImage(renderTarget0)
-		.setViewType(vk::ImageViewType::e2D)
-		.setSubresourceRange(vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
-	vkInfo->device.createImageView(&renderTargetViewInfo, 0, &renderView0);
-	renderTargetViewInfo.setImage(renderTarget1);
-	vkInfo->device.createImageView(&renderTargetViewInfo, 0, &renderView1);
+	vk::ImageView attachment;
 
 	auto framebufferInfo = vk::FramebufferCreateInfo()
-		.setRenderPass(renderPass)
 		.setAttachmentCount(1)
-		.setPAttachments(&renderView0)
+		.setPAttachments(&attachment)
 		.setWidth(vkInfo->width)
 		.setHeight(vkInfo->height)
 		.setLayers(1);
-	vkInfo->device.createFramebuffer(&framebufferInfo, 0, &framebuffer0);
-	framebufferInfo.setPAttachments(&renderView1);
-	vkInfo->device.createFramebuffer(&framebufferInfo, 0, &framebuffer1);
+
+	framebufferInfo.setRenderPass(bloomRenderPass);
+	bloomFramebuffers.resize(2);
+
+	attachment = renderTarget0.imageView;
+	vkInfo->device.createFramebuffer(&framebufferInfo, 0, &bloomFramebuffers[0]);
+
+	attachment = renderTarget1.imageView;
+	vkInfo->device.createFramebuffer(&framebufferInfo, 0, &bloomFramebuffers[1]);
+
+	combineFramebuffers.resize(vkInfo->frameCount);
+
+	framebufferInfo.setRenderPass(combineRenderPass);
+	for (uint32_t i = 0; i < vkInfo->frameCount; i++) {
+		attachment = vkInfo->swapchainImageViews[i];
+		vkInfo->device.createFramebuffer(&framebufferInfo, 0, &combineFramebuffers[i]);
+	}
 }
 
-void PostProcessing::Bloom::PrepareDescriptorSets(vk::ImageView renderTarget) {
+void PostProcessing::Bloom::PrepareDescriptorSets(vk::ImageView sourceImage) {
 	//创建描述符布局
-	vk::DescriptorSetLayoutBinding layoutbinding[2];
-	layoutbinding[0] = vk::DescriptorSetLayoutBinding()
+	descSetLayout.resize(2);
+
+	vk::DescriptorSetLayoutBinding layoutbinding_combine[3];
+	layoutbinding_combine[0] = vk::DescriptorSetLayoutBinding()
 		.setBinding(0)
 		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampler)
+		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
-	layoutbinding[1] = vk::DescriptorSetLayoutBinding()
+	layoutbinding_combine[1] = vk::DescriptorSetLayoutBinding()
 		.setBinding(1)
 		.setDescriptorCount(1)
-		.setDescriptorType(vk::DescriptorType::eSampledImage)
+		.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+	layoutbinding_combine[2] = vk::DescriptorSetLayoutBinding()
+		.setBinding(2)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
 		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
 	auto descLayoutInfo = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(2)
-		.setPBindings(layoutbinding);
+		.setBindingCount(3)
+		.setPBindings(layoutbinding_combine);
 
-	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo, 0, &descSetLayout);
+	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo, 0, &descSetLayout[1]);
+
+	vk::DescriptorSetLayoutBinding layoutbinding_sampleImage;
+	layoutbinding_sampleImage = vk::DescriptorSetLayoutBinding()
+		.setBinding(0)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+	descLayoutInfo = vk::DescriptorSetLayoutCreateInfo()
+		.setBindingCount(1)
+		.setPBindings(&layoutbinding_sampleImage);
+
+	vkInfo->device.createDescriptorSetLayout(&descLayoutInfo, 0, &descSetLayout[0]);
 
 	//分配描述符
-	vk::DescriptorSetLayout layouts[] = {
-		descSetLayout, descSetLayout, descSetLayout
-	};
+	descSets.resize(4);
 
 	auto descSetAllocInfo = vk::DescriptorSetAllocateInfo()
 		.setDescriptorPool(vkInfo->descPool)
-		.setDescriptorSetCount(3)
-		.setPSetLayouts(layouts);
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&descSetLayout[0]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &descSets[0]);
 
-	descSets.resize(3);
-	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, descSets.data());
+	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+		.setDescriptorPool(vkInfo->descPool)
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&descSetLayout[0]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &descSets[1]);
+
+	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+		.setDescriptorPool(vkInfo->descPool)
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&descSetLayout[0]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &descSets[2]);
+
+	descSetAllocInfo = vk::DescriptorSetAllocateInfo()
+		.setDescriptorPool(vkInfo->descPool)
+		.setDescriptorSetCount(1)
+		.setPSetLayouts(&descSetLayout[1]);
+	vkInfo->device.allocateDescriptorSets(&descSetAllocInfo, &descSets[3]);
+
+	//创建采样器
+	auto samplerInfo = vk::SamplerCreateInfo()
+		.setAnisotropyEnable(VK_FALSE)
+		.setBorderColor(vk::BorderColor::eIntOpaqueBlack)
+		.setCompareEnable(VK_FALSE)
+		.setCompareOp(vk::CompareOp::eAlways)
+		.setMagFilter(vk::Filter::eLinear)
+		.setMaxLod(1.0f)
+		.setMinLod(0.0f)
+		.setMipLodBias(0.0f)
+		.setMinFilter(vk::Filter::eLinear)
+		.setMipmapMode(vk::SamplerMipmapMode::eLinear)
+		.setUnnormalizedCoordinates(VK_FALSE)
+		.setAddressModeU(vk::SamplerAddressMode::eClampToEdge)
+		.setAddressModeV(vk::SamplerAddressMode::eClampToEdge)
+		.setAddressModeW(vk::SamplerAddressMode::eClampToEdge);
+	vkInfo->device.createSampler(&samplerInfo, 0, &sampler);
+
+	hdrProperties = std::make_unique<Buffer<PostProcessingProfile::HDR>>(&vkInfo->device, 1, vk::BufferUsageFlagBits::eUniformBuffer, vkInfo->gpu.getMemoryProperties(), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, true);
 
 	//更新描述符
-	vk::Sampler sampler;
-	{
-		auto samplerInfo = vk::SamplerCreateInfo()
-			.setAddressModeU(vk::SamplerAddressMode::eClampToEdge)
-			.setAddressModeV(vk::SamplerAddressMode::eClampToEdge)
-			.setAddressModeW(vk::SamplerAddressMode::eClampToEdge)
-			.setAnisotropyEnable(VK_FALSE)
-			.setBorderColor(vk::BorderColor::eIntOpaqueBlack)
-			.setCompareEnable(VK_FALSE)
-			.setCompareOp(vk::CompareOp::eAlways)
-			.setMagFilter(vk::Filter::eLinear)
-			.setMaxLod(1.0f)
-			.setMinLod(0.0f)
-			.setMipLodBias(0.0f)
-			.setMinFilter(vk::Filter::eLinear)
-			.setMipmapMode(vk::SamplerMipmapMode::eLinear)
-			.setUnnormalizedCoordinates(VK_FALSE);
-		vkInfo->device.createSampler(&samplerInfo, 0, &sampler);
-	}
+	std::array<vk::WriteDescriptorSet, 6> updateInfo;
 
-	auto descriptorSamplerInfo = vk::DescriptorImageInfo()
-		.setSampler(sampler);
+	updateInfo[0].setDescriptorCount(1);
+	updateInfo[0].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+	updateInfo[0].setDstArrayElement(0);
+	updateInfo[0].setDstBinding(0);
+	updateInfo[0].setDstSet(descSets[0]);
+	updateInfo[0].setPImageInfo(&vk::DescriptorImageInfo(sampler, sourceImage, vk::ImageLayout::eShaderReadOnlyOptimal));
 
-	vk::ImageView descriptorImageView[] = {
-		renderTarget, renderView0, renderView1
-	};
+	updateInfo[1].setDescriptorCount(1);
+	updateInfo[1].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+	updateInfo[1].setDstArrayElement(0);
+	updateInfo[1].setDstBinding(0);
+	updateInfo[1].setDstSet(descSets[1]);
+	updateInfo[1].setPImageInfo(&vk::DescriptorImageInfo(sampler, renderTarget0.imageView, vk::ImageLayout::eShaderReadOnlyOptimal));
 
-	for (uint32_t i = 0; i < descSets.size(); i++) {
-		auto descriptorImageInfo = vk::DescriptorImageInfo()
-			.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-			.setImageView(descriptorImageView[i]);
+	updateInfo[2].setDescriptorCount(1);
+	updateInfo[2].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+	updateInfo[2].setDstArrayElement(0);
+	updateInfo[2].setDstBinding(0);
+	updateInfo[2].setDstSet(descSets[2]);
+	updateInfo[2].setPImageInfo(&vk::DescriptorImageInfo(sampler, renderTarget1.imageView, vk::ImageLayout::eShaderReadOnlyOptimal));
 
-		vk::WriteDescriptorSet descSetWrites[2];
-		descSetWrites[0].setDescriptorCount(1);
-		descSetWrites[0].setDescriptorType(vk::DescriptorType::eSampler);
-		descSetWrites[0].setDstArrayElement(0);
-		descSetWrites[0].setDstBinding(0);
-		descSetWrites[0].setDstSet(descSets[i]);
-		descSetWrites[0].setPImageInfo(&descriptorSamplerInfo);
-		descSetWrites[1].setDescriptorCount(1);
-		descSetWrites[1].setDescriptorType(vk::DescriptorType::eSampledImage);
-		descSetWrites[1].setDstArrayElement(0);
-		descSetWrites[1].setDstBinding(1);
-		descSetWrites[1].setDstSet(descSets[i]);
-		descSetWrites[1].setPImageInfo(&descriptorImageInfo);
-		vkInfo->device.updateDescriptorSets(2, descSetWrites, 0, 0);
-	}
+	updateInfo[3].setDescriptorCount(1);
+	updateInfo[3].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+	updateInfo[3].setDstArrayElement(0);
+	updateInfo[3].setDstBinding(1);
+	updateInfo[3].setDstSet(descSets[3]);
+	updateInfo[3].setPImageInfo(&vk::DescriptorImageInfo(sampler, sourceImage, vk::ImageLayout::eShaderReadOnlyOptimal));
+
+	updateInfo[4].setDescriptorCount(1);
+	updateInfo[4].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+	updateInfo[4].setDstArrayElement(0);
+	updateInfo[4].setDstBinding(2);
+	updateInfo[4].setDstSet(descSets[3]);
+	updateInfo[4].setPImageInfo(&vk::DescriptorImageInfo(sampler, renderTarget0.imageView, vk::ImageLayout::eShaderReadOnlyOptimal));
+
+	updateInfo[5].setDescriptorCount(1);
+	updateInfo[5].setDescriptorType(vk::DescriptorType::eUniformBuffer);
+	updateInfo[5].setDstArrayElement(0);
+	updateInfo[5].setDstBinding(0);
+	updateInfo[5].setDstSet(descSets[3]);
+	updateInfo[5].setPBufferInfo(&vk::DescriptorBufferInfo(hdrProperties->GetBuffer(), 0, sizeof(PostProcessingProfile::HDR)));
+
+	vkInfo->device.updateDescriptorSets(updateInfo.size(), updateInfo.data(), 0, 0);
 }
 
 void PostProcessing::Bloom::PreparePipelines() {
@@ -177,6 +239,9 @@ void PostProcessing::Bloom::PreparePipelines() {
 	auto psModule = CreateShaderModule("Shaders\\bloomPS.spv", vkInfo->device);
 	auto blurH = CreateShaderModule("Shaders\\blurH.spv", vkInfo->device);
 	auto blurV = CreateShaderModule("Shaders\\blurV.spv", vkInfo->device);
+	auto combineShader = CreateShaderModule("Shaders\\combine.spv", vkInfo->device);
+
+	pipelineLayout.resize(2);
 
 	//编译着色器
 	std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderInfo(2);
@@ -282,13 +347,12 @@ void PostProcessing::Bloom::PreparePipelines() {
 		.setPushConstantRangeCount(0)
 		.setPPushConstantRanges(0)
 		.setSetLayoutCount(1)
-		.setPSetLayouts(&descSetLayout);
-
-	vkInfo->device.createPipelineLayout(&plInfo, 0, &pipelineLayout);
+		.setPSetLayouts(&descSetLayout[0]);
+	vkInfo->device.createPipelineLayout(&plInfo, 0, &pipelineLayout[0]);
 
 	//16.11 Create pipeline state
 	auto pipelineInfo = vk::GraphicsPipelineCreateInfo()
-		.setLayout(pipelineLayout)
+		.setLayout(pipelineLayout[0])
 		.setPColorBlendState(&cbInfo)
 		.setPDepthStencilState(&dsInfo)
 		.setPDynamicState(&dynamicInfo)
@@ -297,7 +361,7 @@ void PostProcessing::Bloom::PreparePipelines() {
 		.setStageCount(2)
 		.setPStages(pipelineShaderInfo.data())
 		.setPViewportState(&vpInfo)
-		.setRenderPass(renderPass)
+		.setRenderPass(bloomRenderPass)
 		.setPInputAssemblyState(&iaInfo)
 		.setPVertexInputState(&viInfo);
 
@@ -333,76 +397,72 @@ void PostProcessing::Bloom::PreparePipelines() {
 
 	vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &pipelines["blurV"]);
 
+	//编译用于图像混合的着色器
+	pipelineShaderInfo[1] = vk::PipelineShaderStageCreateInfo()
+		.setPName("main")
+		.setModule(combineShader)
+		.setStage(vk::ShaderStageFlagBits::eFragment);
+
+	//创建管线布局
+	auto combinePipelineLayoutInfo = vk::PipelineLayoutCreateInfo()
+		.setPushConstantRangeCount(0)
+		.setPPushConstantRanges(0)
+		.setSetLayoutCount(1)
+		.setPSetLayouts(&descSetLayout[1]);
+	vkInfo->device.createPipelineLayout(&combinePipelineLayoutInfo, 0, &pipelineLayout[1]);
+
+	//创建用于图像混合的管线
+	pipelineInfo.setLayout(pipelineLayout[1]);
+	pipelineInfo.setRenderPass(combineRenderPass);
+
+	vkInfo->device.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &pipelines["combine"]);
+
 	vkInfo->device.destroyShaderModule(vsModule);
 	vkInfo->device.destroyShaderModule(psModule);
 	vkInfo->device.destroyShaderModule(blurH);
 	vkInfo->device.destroyShaderModule(blurV);
+	vkInfo->device.destroyShaderModule(combineShader);
 }
 
-void PostProcessing::Bloom::Init(Vulkan* vkInfo, vk::ImageView renderTarget) {
-	this->vkInfo = vkInfo;
-	PrepareRenderPass();
-	PrepareFramebuffers();
-	PrepareDescriptorSets(renderTarget);
-	PreparePipelines();
-}
-
-void PostProcessing::Bloom::ExtractionBrightness(vk::CommandBuffer* cmd) {
-	vk::ClearValue clearValue = vk::ClearColorValue(std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
+void PostProcessing::Bloom::Begin(vk::CommandBuffer cmd, uint32_t currentImage) {
+	vk::ClearValue clearValue[] = {
+		vk::ClearColorValue(std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }))
+	};
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
-		.setFramebuffer(framebuffer0)
+		.setFramebuffer(bloomFramebuffers[0])
 		.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)))
-		.setRenderPass(renderPass)
+		.setRenderPass(bloomRenderPass)
 		.setClearValueCount(1)
-		.setPClearValues(&clearValue);
+		.setPClearValues(clearValue);
+	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 
-	cmd->beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["brightness"]);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout[0], 0, 1, &descSets[0], 0, 0);
+	cmd.draw(4, 1, 0, 0);
+	cmd.endRenderPass();
 
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["brightness"]);
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descSets[0], 0, 0);
+	renderPassBeginInfo.setFramebuffer(bloomFramebuffers[1]);
+	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 
-	cmd->draw(4, 1, 0, 0);
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["blurH"]);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout[0], 0, 1, &descSets[1], 0, 0);
+	cmd.draw(4, 1, 0, 0);
+	cmd.endRenderPass();
 
-	cmd->endRenderPass();
-}
+	renderPassBeginInfo.setFramebuffer(bloomFramebuffers[0]);
+	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 
-void PostProcessing::Bloom::BlurH(vk::CommandBuffer* cmd) {
-	vk::ClearValue clearValue = vk::ClearColorValue(std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["blurV"]);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout[0], 0, 1, &descSets[2], 0, 0);
+	cmd.draw(4, 1, 0, 0);
+	cmd.endRenderPass();
 
-	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
-		.setFramebuffer(framebuffer1)
-		.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)))
-		.setRenderPass(renderPass)
-		.setClearValueCount(1)
-		.setPClearValues(&clearValue);
+	renderPassBeginInfo.setFramebuffer(combineFramebuffers[currentImage]);
+	renderPassBeginInfo.setRenderPass(combineRenderPass);
+	cmd.beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
 
-	cmd->beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
-
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["blurH"]);
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descSets[1], 0, 0);
-
-	cmd->draw(4, 1, 0, 0);
-
-	cmd->endRenderPass();
-}
-
-void PostProcessing::Bloom::BlurV(vk::CommandBuffer* cmd) {
-	vk::ClearValue clearValue = vk::ClearColorValue(std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
-
-	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
-		.setFramebuffer(framebuffer0)
-		.setRenderArea(vk::Rect2D(vk::Offset2D(0.0f, 0.0f), vk::Extent2D(vkInfo->width, vkInfo->height)))
-		.setRenderPass(renderPass)
-		.setClearValueCount(1)
-		.setPClearValues(&clearValue);
-
-	cmd->beginRenderPass(&renderPassBeginInfo, vk::SubpassContents::eInline);
-
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["blurV"]);
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descSets[2], 0, 0);
-
-	cmd->draw(4, 1, 0, 0);
-
-	cmd->endRenderPass();
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines["combine"]);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout[1], 0, 1, &descSets[3], 0, 0);
+	cmd.draw(4, 1, 0, 0);
 }

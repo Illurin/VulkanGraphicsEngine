@@ -37,6 +37,7 @@ public:
 	void SetSkybox(Texture image, float radius, uint32_t subdivision);
 
 	//后处理设定
+	void SetHDRProperty(float exposure);
 	void SetBloomPostProcessing(PostProcessingProfile::Bloom& profile);
 
 	//GUI设定
