@@ -1,5 +1,5 @@
 #pragma once
-#include "Common/Scene.h"
+#include "Common/Editor.h"
 
 class VkApp {
 public:
@@ -13,6 +13,7 @@ private:
 
 	Vulkan vkInfo;
 	Scene scene;
+	Editor* engineEditor;
 
 	bool recordCommand = true;
 
@@ -21,13 +22,4 @@ private:
 	float deltaTime = 0.05f;
 
 	float hdrExposure = 1.0f;
-
-	struct {
-		float position[3] = { 0.0f, 0.0f, 0.0f };
-		float color[3] = { 0.0f, 0.0f, 0.0f };
-		float fallOffStart = 0.0f;
-		float fallOffEnd = 3.0f;
-	}lightController;
-	
-	bool particleSystemEnabled = true;
 };

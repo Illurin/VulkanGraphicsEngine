@@ -38,27 +38,19 @@ bool PlayerInput::Update() {
 }
 
 bool PlayerInput::GetKey(int dikVaule) {
-	if (currentKeyBuffer[dikVaule] & 0x80)
-		return true;
-	return false;
+	return currentKeyBuffer[dikVaule] & 0x80;
 }
 
 bool PlayerInput::GetKeyDown(int dikValue) {
-	if ((currentKeyBuffer[dikValue] & 0x80) && !(lastKeyBuffer[dikValue] & 0x80))
-		return true;
-	return false;
+	return (currentKeyBuffer[dikValue] & 0x80) && !(lastKeyBuffer[dikValue] & 0x80);
 }
 
 bool PlayerInput::GetMouse(int button) {
-	if (currentMouseState.rgbButtons[button] & 0x80)
-		return true;
-	return false;
+	return currentMouseState.rgbButtons[button] & 0x80;
 }
 
 bool PlayerInput::GetMouseDown(int button) {
-	if ((currentMouseState.rgbButtons[button] & 0x80) && !(lastMouseState.rgbButtons[button] & 0x80))
-		return true;
-	return false;
+	return (currentMouseState.rgbButtons[button] & 0x80) && !(lastMouseState.rgbButtons[button] & 0x80);
 }
 
 void PlayerInput::GetCursorPosition(long& cursorPositionX, long& cursorPositionY) {

@@ -491,6 +491,7 @@ void VkApp::Start() {
 	scene.SetBloomPostProcessing(bloomProfile);
 
 	//Éè¶¨GUI
+	engineEditor = new Editor(&scene);
 	scene.PrepareImGUI();
 
 	scene.SetupVertexBuffer();
@@ -502,24 +503,12 @@ void VkApp::Start() {
 void VkApp::OnGUI() {
 	ImGui::NewFrame();
 
-	ImGui::SetNextWindowSize(ImVec2(400, 200), 0);
-	ImGui::SetNextWindowPos(ImVec2(10, 10));
-	ImGui::Begin("Scene properties");
-
-	if (ImGui::Button("Particle System Switch", ImVec2(200, 30)))
-		particleSystemEnabled = !particleSystemEnabled;
-
-	ImGui::SliderFloat("delta time", &deltaTime, 0.01f, 0.05f);
-	ImGui::SliderFloat3("light position", lightController.position, -10.0f, 10.0f);
-	ImGui::SliderFloat3("light color", lightController.color, 0.0f, 1.0f);
-	ImGui::SliderFloat("light fall off start", &lightController.fallOffStart, 0.0f, 3.0f);
-	ImGui::SliderFloat("light fall off end", &lightController.fallOffEnd, 0.0f, 10.0f);
-
-	ImGui::End();
+	engineEditor->Update();
 
 	ImGui::SetNextWindowSize(ImVec2(400, 100), 0);
-	ImGui::Begin("Processing properties");
+	ImGui::Begin("Vulkan application properties");
 
+	ImGui::SliderFloat("delta time", &deltaTime, 0.0f, 0.05f);
 	ImGui::SliderFloat("HDR exposure", &hdrExposure, 0.0f, 5.0f);
 
 	ImGui::End();
@@ -529,13 +518,6 @@ void VkApp::OnGUI() {
 	recordCommand = true;
 
 	scene.SetHDRProperty(hdrExposure);
-
-	glm::vec3 position = glm::vec3(lightController.position[0], lightController.position[1], lightController.position[2]);
-	glm::vec3 color = glm::vec3(lightController.color[0], lightController.color[1], lightController.color[2]);
-
-	for (int i = 1; i < NUM_POINT_LIGHT; i++) {
-		scene.SetPointLight(i, position + glm::vec3(2.0f, 0.0f, 2.0f) * (float)i, color, lightController.fallOffStart, lightController.fallOffEnd);
-	}
 }
 
 void VkApp::Loop() {
@@ -547,9 +529,7 @@ void VkApp::Loop() {
 	scene.UpdateMaterialConstants();
 	scene.UpdateSkinnedModel(deltaTime);
 	scene.UpdateImGUI(deltaTime);
-
-	if (particleSystemEnabled)
-		scene.UpdateCPUParticleSystem(deltaTime);
+	scene.UpdateCPUParticleSystem(deltaTime);
 
 	//Wait for swap chain
 	uint32_t currentBuffer;

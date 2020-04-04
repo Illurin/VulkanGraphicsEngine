@@ -121,6 +121,9 @@
     <ClInclude Include="Common\RenderEngine.h">
       <Filter>引擎框架</Filter>
     </ClInclude>
+    <ClInclude Include="Common\Editor.h">
+      <Filter>引擎框架</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VulkanGraphicsEngine.cpp">

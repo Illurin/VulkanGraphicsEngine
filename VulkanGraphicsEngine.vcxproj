@@ -155,6 +155,7 @@
   <ItemGroup>
     <ClInclude Include="Common\Camera.h" />
     <ClInclude Include="Common\Component.h" />
+    <ClInclude Include="Common\Editor.h" />
     <ClInclude Include="Common\FrameResource.h" />
     <ClInclude Include="Common\GeometryGenerator.h" />
     <ClInclude Include="Common\ImGUI.h" />

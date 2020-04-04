@@ -58,6 +58,10 @@ public:
 
 	void DrawObject(vk::CommandBuffer cmd, uint32_t currentBuffer);
 
+	//Get方法（用于编辑器）
+	std::vector<GameObject*> GetRootObjects()const { return rootObjects; }
+	uint32_t GetObjectCount() { return gameObjects.size(); }
+
 	Vulkan* vkInfo;
 
 private:
