@@ -1,11 +1,11 @@
 # VulkanGraphicsEngine
 基于Vulkan的封装引擎框架
 
-![效果图](Information/演示图片6.png)
+![效果图](Information/演示图片7.png)
 
 ## 重构后的代码框架
 
-更新日志：修改了PostProcessing::Bloom框架，整合了finalPass，增加HDR效果（废除了PostProcessingProfile::Bloom中的blur参数）
+更新日志：增加了简单的Transform编辑器。修改了PostProcessing::Bloom框架，整合了finalPass，增加HDR效果（废除了PostProcessingProfile::Bloom中的blur参数）
 
 图片库：WIC和STBImage，封装了基于WIC的立方体图
 
@@ -360,5 +360,3 @@ Material结构体下提供了法线图的接口：
 ```
 Material::normal = &normalMap;
 Material::shaderModel = ShaderModel::normalMap;
-```
-![效果图](Information/演示图片4.png)
