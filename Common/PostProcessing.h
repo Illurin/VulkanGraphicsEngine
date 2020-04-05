@@ -11,6 +11,7 @@ public:
 
 	struct HDR {
 		float exposure = 1.0f;
+		float gamma = 2.2f;
 	};
 };
 
@@ -44,7 +45,7 @@ namespace PostProcessing {
 			}
 		}
 
-		void SetHDRProperties(float exposure);
+		void SetHDRProperties(float exposure, float gamma);
 
 		vk::RenderPass GetRenderPass()const { return combineRenderPass; }
 

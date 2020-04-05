@@ -37,7 +37,7 @@ public:
 	void SetSkybox(Texture image, float radius, uint32_t subdivision);
 
 	//后处理设定
-	void SetHDRProperty(float exposure);
+	void SetHDRProperty(float exposure, float gamma);
 	void SetBloomPostProcessing(PostProcessingProfile::Bloom& profile);
 
 	//GUI设定
@@ -69,6 +69,7 @@ public:
 
 		return materials;
 	}
+	Light* GetLights() { return lights; }
 	uint32_t GetObjectCount() { return gameObjects.size(); }
 
 	Vulkan* vkInfo;

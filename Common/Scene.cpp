@@ -139,8 +139,8 @@ void Scene::SetSkybox(Texture image, float radius, uint32_t subdivision) {
 	skybox.radius = radius;
 }
 
-void Scene::SetHDRProperty(float exposure) {
-	bloom->SetHDRProperties(exposure);
+void Scene::SetHDRProperty(float exposure, float gamma) {
+	bloom->SetHDRProperties(exposure, gamma);
 }
 
 void Scene::SetBloomPostProcessing(PostProcessingProfile::Bloom& profile) {

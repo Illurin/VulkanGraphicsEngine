@@ -22,4 +22,5 @@ private:
 	float deltaTime = 0.05f;
 
 	float hdrExposure = 1.0f;
+	float gamma = 2.2f;
 };

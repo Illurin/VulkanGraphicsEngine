@@ -510,6 +510,7 @@ void VkApp::OnGUI() {
 
 	ImGui::SliderFloat("delta time", &deltaTime, 0.001f, 0.05f);
 	ImGui::SliderFloat("HDR exposure", &hdrExposure, 0.0f, 5.0f);
+	ImGui::SliderFloat("Gamma correction", &gamma, 0.0f, 5.0f);
 
 	ImGui::End();
 
@@ -517,7 +518,7 @@ void VkApp::OnGUI() {
 
 	recordCommand = true;
 
-	scene.SetHDRProperty(hdrExposure);
+	scene.SetHDRProperty(hdrExposure, gamma);
 }
 
 void VkApp::Loop() {

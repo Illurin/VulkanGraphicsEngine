@@ -1,8 +1,9 @@
 #include "PostProcessing.h"
 
-void PostProcessing::Bloom::SetHDRProperties(float exposure) {
+void PostProcessing::Bloom::SetHDRProperties(float exposure, float gamma) {
 	PostProcessingProfile::HDR hdrProfile;
 	hdrProfile.exposure = exposure;
+	hdrProfile.gamma = gamma;
 
 	hdrProperties->CopyData(&vkInfo->device, 0, 1, &hdrProfile);
 }

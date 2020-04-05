@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.h"
+#include <sstream>
 
 class Editor {
 public:
@@ -15,8 +16,8 @@ public:
 		ImGui::SetNextWindowBgAlpha(0.3f);
 		ImGui::Begin("Hierarchy");
 
-		const char* hierarchyTypeName[] = { "GameObject", "Material" };
-		ImGui::Combo("Type", &hierarchyType, hierarchyTypeName, 2);
+		const char* hierarchyTypeName[] = { "GameObject", "Material", "Light" };
+		ImGui::Combo("Type", &hierarchyType, hierarchyTypeName, 3);
 
 		switch (hierarchyType) {
 		case 0:
@@ -54,6 +55,33 @@ public:
 				if (ImGui::Selectable(material->name.c_str()))
 					currentMaterial = material;
 			}
+			break;
+
+		case 2:
+			for (uint32_t i = 0; i < NUM_DIRECTIONAL_LIGHT; i++) {
+				std::stringstream name;
+				name << i;
+
+				if (ImGui::Selectable(("Directional light" + name.str()).c_str()))
+					currentLightIndex = i;
+			}
+			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+			for (uint32_t i = 0; i < NUM_POINT_LIGHT; i++) {
+				std::stringstream name;
+				name << i;
+
+				if (ImGui::Selectable(("Point light" + name.str()).c_str()))
+					currentLightIndex = i + NUM_DIRECTIONAL_LIGHT;
+			}
+			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+			for (uint32_t i = 0; i < NUM_SPOT_LIGHT; i++) {
+				std::stringstream name;
+				name << i;
+
+				if (ImGui::Selectable(("Spot light" + name.str()).c_str()))
+					currentLightIndex = i + NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT;
+			}
+			break;
 		}
 
 		ImGui::End();
@@ -92,68 +120,125 @@ public:
 		ImGui::SetNextWindowBgAlpha(0.3f);
 		ImGui::Begin("Inspector");
 
-		if (currentObject) {
-			ImGui::Text(("Name : " + currentObject->name).c_str());
+		switch (hierarchyType) {
+		case 0:
+			if (currentObject) {
+				ImGui::Text(("Name : " + currentObject->name).c_str());
 
-			ImGui::Text("Transform : ");
+				ImGui::Text("Transform : ");
 
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+				ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 
-			ImGui::Text("Position:");
-			ImGui::InputFloat("x", &currentObject->transform.position.x, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("y", &currentObject->transform.position.y, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("z", &currentObject->transform.position.z, 0.1f, 0.3f, 5);
+				ImGui::Text("Position:");
+				ImGui::InputFloat("x", &currentObject->transform.position.x, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("y", &currentObject->transform.position.y, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("z", &currentObject->transform.position.z, 0.1f, 0.3f, 5);
 
-			ImGui::Text("Scale : ");
-			ImGui::InputFloat("x ", &currentObject->transform.scale.x, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("y ", &currentObject->transform.scale.y, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("z ", &currentObject->transform.scale.z, 0.1f, 0.3f, 5);
-			
-			ImGui::Text("Local euler angle : ");
-			ImGui::InputFloat("x  ", &currentObject->transform.localEulerAngle.x, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("y  ", &currentObject->transform.localEulerAngle.y, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("z  ", &currentObject->transform.localEulerAngle.z, 0.1f, 0.3f, 5);
+				ImGui::Text("Scale : ");
+				ImGui::InputFloat("x ", &currentObject->transform.scale.x, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("y ", &currentObject->transform.scale.y, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("z ", &currentObject->transform.scale.z, 0.1f, 0.3f, 5);
 
-			ImGui::Text("Euler angle : ");
-			ImGui::InputFloat("x   ", &currentObject->transform.eulerAngle.x, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("y   ", &currentObject->transform.eulerAngle.y, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("z   ", &currentObject->transform.eulerAngle.z, 0.1f, 0.3f, 5);
+				ImGui::Text("Local euler angle : ");
+				ImGui::InputFloat("x  ", &currentObject->transform.localEulerAngle.x, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("y  ", &currentObject->transform.localEulerAngle.y, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("z  ", &currentObject->transform.localEulerAngle.z, 0.1f, 0.3f, 5);
 
-			if (ImGui::Button("Reset transform", ImVec2(200, 30))) {
-				currentObject->transform.position = glm::vec3(0.0f);
-				currentObject->transform.scale = glm::vec3(1.0f);
-				currentObject->transform.localEulerAngle = glm::vec3(0.0f);
-				currentObject->transform.eulerAngle = glm::vec3(0.0f);
+				ImGui::Text("Euler angle : ");
+				ImGui::InputFloat("x   ", &currentObject->transform.eulerAngle.x, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("y   ", &currentObject->transform.eulerAngle.y, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("z   ", &currentObject->transform.eulerAngle.z, 0.1f, 0.3f, 5);
+
+				if (ImGui::Button("Reset transform", ImVec2(200, 30))) {
+					currentObject->transform.position = glm::vec3(0.0f);
+					currentObject->transform.scale = glm::vec3(1.0f);
+					currentObject->transform.localEulerAngle = glm::vec3(0.0f);
+					currentObject->transform.eulerAngle = glm::vec3(0.0f);
+				}
+
+				currentObject->UpdateData();
+			}
+			break;
+
+		case 1:
+			if (currentMaterial) {
+				ImGui::Text(("Name : " + currentMaterial->name).c_str());
+
+				float diffuseAlbedo[4] = { currentMaterial->diffuseAlbedo.r,  currentMaterial->diffuseAlbedo.g, currentMaterial->diffuseAlbedo.b, currentMaterial->diffuseAlbedo.a };
+				ImGui::ColorEdit4("Diffuse albedo", diffuseAlbedo);
+				currentMaterial->diffuseAlbedo.r = diffuseAlbedo[0];
+				currentMaterial->diffuseAlbedo.g = diffuseAlbedo[1];
+				currentMaterial->diffuseAlbedo.b = diffuseAlbedo[2];
+				currentMaterial->diffuseAlbedo.a = diffuseAlbedo[3];
+
+				ImGui::Text("Fresnel R0 : ");
+				ImGui::InputFloat("r", &currentMaterial->fresnelR0.r, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("g", &currentMaterial->fresnelR0.g, 0.1f, 0.3f, 5);
+				ImGui::InputFloat("b", &currentMaterial->fresnelR0.b, 0.1f, 0.3f, 5);
+
+				ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+
+				ImGui::InputFloat("roughness", &currentMaterial->roughness, 0.01f, 0.3f, 5);
+
+				if (ImGui::Button("Reset material", ImVec2(200, 30))) {
+					currentMaterial->diffuseAlbedo = glm::vec4(1.0f);
+					currentMaterial->fresnelR0 = glm::vec3(0.0f);
+					currentMaterial->roughness = 0.0f;
+				}
+
+				currentMaterial->dirtyFlag = true;
+			}
+			break;
+
+		case 2:
+			Light* lights = scene->GetLights();
+			Light* currentLight = &lights[currentLightIndex];
+
+			float lightStrength[3] = { currentLight->strength.r,  currentLight->strength.g, currentLight->strength.b };
+			ImGui::ColorEdit3("Strength", lightStrength);
+			currentLight->strength.r = lightStrength[0];
+			currentLight->strength.g = lightStrength[1];
+			currentLight->strength.b = lightStrength[2];
+
+			if (currentLightIndex < NUM_DIRECTIONAL_LIGHT) {
+				ImGui::Text("Direction");
+				ImGui::InputFloat("x", &currentLight->strength.x, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("y", &currentLight->strength.y, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("z", &currentLight->strength.z, 0.01f, 0.3f, 5);
+			}
+			else if (currentLightIndex < NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT) {
+				ImGui::Text("Position");
+				ImGui::InputFloat("x", &currentLight->position.x, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("y", &currentLight->position.y, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("z", &currentLight->position.z, 0.01f, 0.3f, 5);
+
+				ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+
+				ImGui::InputFloat("Fall off start", &currentLight->fallOffStart, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("Fall off start", &currentLight->fallOffEnd, 0.01f, 0.3f, 5);
+			}
+			else {
+				ImGui::Text("Direction");
+				ImGui::InputFloat("x", &currentLight->strength.x, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("y", &currentLight->strength.y, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("z", &currentLight->strength.z, 0.01f, 0.3f, 5);
+
+				ImGui::Text("Position");
+				ImGui::InputFloat("x ", &currentLight->position.x, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("y ", &currentLight->position.y, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("z ", &currentLight->position.z, 0.01f, 0.3f, 5);
+
+				ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+
+				ImGui::InputFloat("Fall off start", &currentLight->fallOffStart, 0.01f, 0.3f, 5);
+				ImGui::InputFloat("Fall off end", &currentLight->fallOffEnd, 0.01f, 0.3f, 5);
+
+				ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
+
+				ImGui::InputFloat("Spot power", &currentLight->spotPower, 0.01f, 0.3f, 5);
 			}
 
-			currentObject->UpdateData();
-		}
-		if (currentMaterial) {
-			ImGui::Text(("Name : " + currentMaterial->name).c_str());
-
-			float diffuseAlbedo[4] = { currentMaterial->diffuseAlbedo.r,  currentMaterial->diffuseAlbedo.g, currentMaterial->diffuseAlbedo.b, currentMaterial->diffuseAlbedo.a };
-			ImGui::ColorEdit4("Diffuse albedo", diffuseAlbedo);
-			currentMaterial->diffuseAlbedo.r = diffuseAlbedo[0];
-			currentMaterial->diffuseAlbedo.g = diffuseAlbedo[1];
-			currentMaterial->diffuseAlbedo.b = diffuseAlbedo[2];
-			currentMaterial->diffuseAlbedo.a = diffuseAlbedo[3];
-
-			ImGui::Text("Fresnel R0 : ");
-			ImGui::InputFloat("r", &currentMaterial->fresnelR0.r, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("g", &currentMaterial->fresnelR0.g, 0.1f, 0.3f, 5);
-			ImGui::InputFloat("b", &currentMaterial->fresnelR0.b, 0.1f, 0.3f, 5);
-
-			ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-
-			ImGui::InputFloat("roughness", &currentMaterial->roughness, 0.1f, 0.3f, 5);
-
-			if (ImGui::Button("Reset material", ImVec2(200, 30))) {
-				currentMaterial->diffuseAlbedo = glm::vec4(1.0f);
-				currentMaterial->fresnelR0 = glm::vec3(0.0f);
-				currentMaterial->roughness = 0.0f;
-			}
-
-			currentMaterial->dirtyFlag = true;
+			break;
 		}
 
 		ImGui::End();
@@ -191,6 +276,7 @@ private:
 	std::vector<bool> objectSelected;
 	GameObject* currentObject = nullptr;
 	Material* currentMaterial = nullptr;
+	int currentLightIndex = 0;
 
 	int hierarchyType = 0;
 
