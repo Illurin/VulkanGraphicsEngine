@@ -60,6 +60,15 @@ public:
 
 	//Get方法（用于编辑器）
 	std::vector<GameObject*> GetRootObjects()const { return rootObjects; }
+	std::vector<Material*> GetAllMaterials() {
+		std::vector<Material*> materials;
+
+		for (auto& material : this->materials) {
+			materials.push_back(&material.second);
+		}
+
+		return materials;
+	}
 	uint32_t GetObjectCount() { return gameObjects.size(); }
 
 	Vulkan* vkInfo;

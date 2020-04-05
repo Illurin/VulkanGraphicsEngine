@@ -508,7 +508,7 @@ void VkApp::OnGUI() {
 	ImGui::SetNextWindowSize(ImVec2(400, 100), 0);
 	ImGui::Begin("Vulkan application properties");
 
-	ImGui::SliderFloat("delta time", &deltaTime, 0.0f, 0.05f);
+	ImGui::SliderFloat("delta time", &deltaTime, 0.001f, 0.05f);
 	ImGui::SliderFloat("HDR exposure", &hdrExposure, 0.0f, 5.0f);
 
 	ImGui::End();

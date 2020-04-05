@@ -10,6 +10,7 @@ enum class SamplerType : int {
 enum class ShaderModel : int {
 	common = 0,
 	normalMap,
+	soildColor,
 	shaderModelCount
 };
 

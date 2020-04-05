@@ -170,7 +170,7 @@ void Scene::UpdateImGUI(float deltaTime) {
 		io.MousePos = ImVec2((float)cursorPosX, (float)cursorPosY);
 		io.MouseDown[0] = vkInfo->input.GetMouseDown(0);
 		io.MouseDown[1] = vkInfo->input.GetMouseDown(1);
-		
+
 		imgui->UpdateBuffers();
 	}
 }
