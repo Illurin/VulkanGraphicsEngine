@@ -17,7 +17,7 @@ float4 main(PixelIn input) {
 	float3 hdrColor = source0.Sample(sourceSampler, input.texCoord).rgb + source1.Sample(sourceSampler, input.texCoord).rgb;
 	hdrColor = float3(1.0f) - exp(-hdrColor * exposure);
 
-	hdrColor.rgb = pow(hdrColor.rgb, float3(gamma));
+	hdrColor = pow(hdrColor, float3(gamma));
 
 	return float4(hdrColor, 1.0f);
 }
